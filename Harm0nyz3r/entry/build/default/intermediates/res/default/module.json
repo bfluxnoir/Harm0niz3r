@@ -1,0 +1,92 @@
+{
+	"app":	{
+		"bundleName":	"com.dekra.harm0nyz3r",
+		"vendor":	"example",
+		"versionCode":	1000000,
+		"versionName":	"1.1.0",
+		"icon":	"$media:app_layered_image",
+		"label":	"$string:app_name",
+		"apiReleaseType":	"Release",
+		"compileSdkVersion":	"5.1.0.110",
+		"targetAPIVersion":	50100018,
+		"minAPIVersion":	50003015,
+		"compileSdkType":	"HarmonyOS",
+		"appEnvironments":	[],
+		"bundleType":	"app",
+		"buildMode":	"debug",
+		"debug":	true,
+		"iconId":	16777219,
+		"labelId":	16777216
+	},
+	"module":	{
+		"name":	"entry",
+		"type":	"entry",
+		"description":	"$string:module_desc",
+		"mainElement":	"EntryAbility",
+		"deviceTypes":	["phone", "tablet", "2in1"],
+		"requestPermissions":	[{
+				"name":	"ohos.permission.INTERNET",
+				"reason":	"$string:RunningLocalhostsocket",
+				"usedScene":	{
+					"abilities":	["EntryAbility"],
+					"when":	"always"
+				},
+				"reasonId":	16777223
+			}, {
+				"name":	"ohos.permission.KEEP_BACKGROUND_RUNNING",
+				"reason":	"$string:BackgroundTask",
+				"usedScene":	{
+					"abilities":	["EntryAbility"],
+					"when":	"inuse"
+				},
+				"reasonId":	16777220
+			}, {
+				"name":	"ohos.permission.RUNNING_LOCK",
+				"reason":	"$string:BackgroundTask",
+				"usedScene":	{
+					"abilities":	["EntryAbility"],
+					"when":	"inuse"
+				},
+				"reasonId":	16777220
+			}],
+		"deliveryWithInstall":	true,
+		"installationFree":	false,
+		"pages":	"$profile:main_pages",
+		"abilities":	[{
+				"name":	"EntryAbility",
+				"srcEntry":	"./ets/entryability/EntryAbility.ets",
+				"description":	"$string:EntryAbility_desc",
+				"icon":	"$media:layered_image",
+				"label":	"$string:EntryAbility_label",
+				"startWindowIcon":	"$media:startIcon",
+				"startWindowBackground":	"$color:start_window_background",
+				"exported":	true,
+				"backgroundModes":	["dataTransfer"],
+				"skills":	[{
+						"entities":	["entity.system.home"],
+						"actions":	["action.system.home"]
+					}],
+				"descriptionId":	16777221,
+				"iconId":	16777235,
+				"labelId":	16777222,
+				"startWindowIconId":	16777236,
+				"startWindowBackgroundId":	16777231
+			}],
+		"extensionAbilities":	[{
+				"name":	"EntryBackupAbility",
+				"srcEntry":	"./ets/entrybackupability/EntryBackupAbility.ets",
+				"type":	"backup",
+				"exported":	false,
+				"metadata":	[{
+						"name":	"ohos.extension.backup",
+						"resource":	"$profile:backup_config",
+						"resourceId":	16777238
+					}]
+			}],
+		"packageName":	"entry",
+		"virtualMachine":	"ark12.0.6.0",
+		"compileMode":	"esmodule",
+		"dependencies":	[],
+		"descriptionId":	16777230
+	}
+}

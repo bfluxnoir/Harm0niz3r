@@ -1,0 +1,48 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "TcpServiceExtensionAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "TcpServiceExtensionAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "SocketServiceAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "SocketServiceAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "RunningLocalhostsocket",
+      "value": "Localhost permission required"
+    },
+    {
+      "name": "TCPServiceAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "TCPServiceAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "BackgroundTask",
+      "value": "Background TCP Server running"
+    }
+  ]
+}
