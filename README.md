@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)
 ![HarmonyOS](https://img.shields.io/badge/HarmonyOS-Next%205.0%2B-lightgrey.svg)
 ![Status](https://img.shields.io/badge/Status-Active-success.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 
 A powerful security assessment and application interaction framework for HarmonyOS Next (5.0+).
 Harm0niz3r enables researchers to interact with and analyze applications from a controlled rogue app, allowing enumeration of internal components and permissions in a simple and extensible way.
@@ -162,3 +162,8 @@ def _process_app_command_request(self, command_payload: str):
 - Pablo Cáceres Gaitán
 
 As part of DEKRA's cybersecurity team.
+
+## License
+
+Harm0niz3r is licensed under the **Apache License, Version 2.0**. See the [LICENSE](LICENSE) file for details.
+
