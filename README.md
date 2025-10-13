@@ -46,7 +46,6 @@ hdc fport tcp:51337 tcp:51337
 
 Then from Harm0niz3r CLI run the `connect` command (ensure the client is listening, 51337 is the default port and can be seen in the GUI). After that, *MARCO-POLO* handshake will be performed and connection should be stablished.
 
-[!NOTE]
 > If status is failed and connection is not stablished, make sure port forwarding is being applied and re-run both client and server.
 
 ## Usage
