@@ -151,7 +151,6 @@ def _process_app_command_request(self, command_payload: str):
 
 3. Use new feature (button in Client, command in CLI...)
 
-[!NOTE]
 > Depending on the functionality implemented the command will be defined in one function or another, the above process is just a simplified view. For instance, if wanted to perform the same `new_feature` command from CLI (which is recommended) should also be specified in `start_console`.
 > Or if the feature returns a value back to be displayed on the app, the callback will define a message type and that message should be properly defined in app.
 
