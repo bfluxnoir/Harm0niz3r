@@ -1,5 +1,5 @@
 #python
-_pycache_
+__pycache__
 
 # Gradle files
 .gradle/
