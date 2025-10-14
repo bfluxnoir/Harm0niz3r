@@ -1,5 +1,11 @@
 """
-Version: 1.2.1
+ ==========================================================
+ HARM0NYZ3R - HarmonyOS Security Companion
+ ==========================================================
+ Author: DEKRA
+ Version: 1.2.1
+ License: Apache 2.0
+ ==========================================================
 
 TODO:
     - Stablish a receiving limit in client to avoid buffer overflow flaw when receiving data.
@@ -20,29 +26,8 @@ import queue
 # --- Import the new parser module ---
 from harmonyos_parser import parse_app_dump_string
 
-# --- Configuration ---
-SERVER_HOST = '127.0.0.1'
-PORT = 51337
-BUFFER_SIZE = 8192*2 # Max size for single message. Keep in mind for very long lists.
-HDC_COMMAND = 'hdc'
+from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, HDC_COMMAND, HARMONYZER_ASCII
 
-# ASCII Art for initial run: Rising sun between mountains with "Harm0nyz3r"
-HARMONYZER_ASCII = """
-            .-----.
-           /       \\
-          /_________\\
-         / /\\  /\\  /\\ \\
-        / /  \\/  \\/  \\ \\
-       /_/____\\____\\___\\
-      ^^^^^^^^^^^^^^^^^^^
-   |\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/|
-   |  H A R M 0 N Y Z 3 R |
-   |______________________|
-
-    App Security Companion Script
-
-    v1.2.1
-"""
 
 class HarmonyOSClientConsole:
     """
