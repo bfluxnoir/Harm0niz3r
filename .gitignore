@@ -1,3 +1,6 @@
+#python
+_pycache_
+
 # Gradle files
 .gradle/
 build/
