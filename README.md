@@ -48,9 +48,21 @@ Then from Harm0niz3r CLI run the `connect` command (ensure the client is listeni
 
 > If status is failed and connection is not stablished, make sure port forwarding is being applied and re-run both client and server.
 
-## Usage
+# Usage
 
 Both client GUI and server CLI can be useg to perform many operations. With `help` command in CLI all possibilities are shown.
+
+## App List
+
+Touching *Get APp List from PC* in client UI will display a list of all instaled apps, allowing the user to query relevant information for each one.
+
+This same functionality is possible through CLI using the `app_list -a` command.
+
+## Get Exposed Abilities
+
+Exposed abilities may contain any sensitive information, so checking all of them may be interesting. In the client UI is possible to list and invoke each one with the *Get Abilities from PC* option.
+
+To perform the same operation in the CLI is possible with the `app_visible_abilities` command.
 
 # Development
 
