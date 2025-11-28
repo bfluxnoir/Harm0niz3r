@@ -16,84 +16,88 @@
 			"name":	"app_layered_image",
 			"id":	"0x01000003"
 		}, {
-			"type":	"string",
-			"name":	"BackgroundTask",
+			"type":	"media",
+			"name":	"new_logo",
 			"id":	"0x01000004"
-		}, {
-			"type":	"string",
-			"name":	"EntryAbility_desc",
-			"id":	"0x01000005"
-		}, {
-			"type":	"string",
-			"name":	"EntryAbility_label",
-			"id":	"0x01000006"
-		}, {
-			"type":	"string",
-			"name":	"RunningLocalhostsocket",
-			"id":	"0x01000007"
-		}, {
-			"type":	"string",
-			"name":	"SocketServiceAbility_desc",
-			"id":	"0x01000008"
-		}, {
-			"type":	"string",
-			"name":	"SocketServiceAbility_label",
-			"id":	"0x01000009"
-		}, {
-			"type":	"string",
-			"name":	"TCPServiceAbility_desc",
-			"id":	"0x0100000A"
-		}, {
-			"type":	"string",
-			"name":	"TCPServiceAbility_label",
-			"id":	"0x0100000B"
-		}, {
-			"type":	"string",
-			"name":	"TcpServiceExtensionAbility_desc",
-			"id":	"0x0100000C"
-		}, {
-			"type":	"string",
-			"name":	"TcpServiceExtensionAbility_label",
-			"id":	"0x0100000D"
-		}, {
-			"type":	"string",
-			"name":	"module_desc",
-			"id":	"0x0100000E"
-		}, {
-			"type":	"color",
-			"name":	"start_window_background",
-			"id":	"0x0100000F"
-		}, {
-			"type":	"float",
-			"name":	"page_text_font_size",
-			"id":	"0x01000010"
-		}, {
-			"type":	"media",
-			"name":	"background",
-			"id":	"0x01000011"
-		}, {
-			"type":	"media",
-			"name":	"foreground",
-			"id":	"0x01000012"
-		}, {
-			"type":	"media",
-			"name":	"layered_image",
-			"id":	"0x01000013"
 		}, {
 			"type":	"media",
 			"name":	"startIcon",
+			"id":	"0x01000005"
+		}, {
+			"type":	"string",
+			"name":	"BackgroundTask",
+			"id":	"0x01000006"
+		}, {
+			"type":	"string",
+			"name":	"EntryAbility_desc",
+			"id":	"0x01000007"
+		}, {
+			"type":	"string",
+			"name":	"EntryAbility_label",
+			"id":	"0x01000008"
+		}, {
+			"type":	"string",
+			"name":	"RunningLocalhostsocket",
+			"id":	"0x01000009"
+		}, {
+			"type":	"string",
+			"name":	"SocketServiceAbility_desc",
+			"id":	"0x0100000A"
+		}, {
+			"type":	"string",
+			"name":	"SocketServiceAbility_label",
+			"id":	"0x0100000B"
+		}, {
+			"type":	"string",
+			"name":	"TCPServiceAbility_desc",
+			"id":	"0x0100000C"
+		}, {
+			"type":	"string",
+			"name":	"TCPServiceAbility_label",
+			"id":	"0x0100000D"
+		}, {
+			"type":	"string",
+			"name":	"TcpServiceExtensionAbility_desc",
+			"id":	"0x0100000E"
+		}, {
+			"type":	"string",
+			"name":	"TcpServiceExtensionAbility_label",
+			"id":	"0x0100000F"
+		}, {
+			"type":	"string",
+			"name":	"module_desc",
+			"id":	"0x01000010"
+		}, {
+			"type":	"color",
+			"name":	"start_window_background",
+			"id":	"0x01000011"
+		}, {
+			"type":	"float",
+			"name":	"page_text_font_size",
+			"id":	"0x01000012"
+		}, {
+			"type":	"media",
+			"name":	"background",
+			"id":	"0x01000013"
+		}, {
+			"type":	"media",
+			"name":	"foreground",
 			"id":	"0x01000014"
 		}, {
 			"type":	"media",
-			"name":	"startIconold",
+			"name":	"layered_image",
 			"id":	"0x01000015"
 		}, {
-			"type":	"profile",
-			"name":	"backup_config",
+			"type":	"media",
+			"name":	"startIconold",
 			"id":	"0x01000016"
 		}, {
 			"type":	"profile",
-			"name":	"main_pages",
+			"name":	"backup_config",
 			"id":	"0x01000017"
+		}, {
+			"type":	"profile",
+			"name":	"main_pages",
+			"id":	"0x01000018"
 		}]
 }

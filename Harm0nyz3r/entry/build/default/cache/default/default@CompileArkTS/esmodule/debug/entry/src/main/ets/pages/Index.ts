@@ -2,6 +2,7 @@ if (!("finalizeConstruction" in ViewPU.prototype)) {
     Reflect.set(ViewPU.prototype, "finalizeConstruction", () => { });
 }
 interface Index_Params {
+    abilitiesSearchText?: string;
     tcpBuffer?: string;
     context?;
     port?: string;
@@ -21,6 +22,7 @@ interface Index_Params {
     udmfStatus?: string;
     udmfQueryUri?: string;
     vulnerableAbilities?: VulnerableAbility[];
+    filteredVulnerableAbilities?: VulnerableAbility[];
     isLoadingAbilities?: boolean;
     selectedAbility?: VulnerableAbility | null;
     customWantAction?: string;
@@ -28,8 +30,6 @@ interface Index_Params {
     srv?: socket.TCPSocketServer;
     serverCli?: socket.TCPSocketConnection | undefined;
     NOTIFICATION_ID?: number;
-}
-interface Harm0nyz3rHeader_Params {
 }
 import socket from "@ohos:net.socket";
 import backgroundTaskManager from "@ohos:resourceschedule.backgroundTaskManager";
@@ -43,114 +43,21 @@ import unifiedDataChannel from "@ohos:data.unifiedDataChannel";
 import uniformTypeDescriptor from "@ohos:data.uniformTypeDescriptor";
 import type uniformDataStruct from "@ohos:data.uniformDataStruct";
 import notificationManager from "@ohos:notificationManager";
-// Define an interface for our app data structure
-interface AppInfo {
-    name: string; // User-friendly name (which will be the bundleName in this case)
-    bundleName: string; // The actual bundle name (namespace)
-}
-interface SkillInfo {
-    action?: string;
-    entity?: string;
-    scheme?: string;
-    type?: string;
-    utd?: string[];
-}
-interface ExposedComponent {
-    name: string;
-    type: string;
-    visible: boolean;
-    permissionsRequired: string[];
-    skills: SkillInfo[];
-}
-interface AppSurfaceData {
-    bundleName: string;
-    debugMode: boolean;
-    systemApp: boolean;
-    requiredAppPermissions: string[];
-    exposedComponents: ExposedComponent[];
-}
-// NEW: Interface for UDMF query result payload
-interface UDMFQueryResult {
-    uri: string;
-    content: string[];
-}
-interface VulnerableAbility {
-    app: string; // bundleName
-    ability: string; // ability name
-    skills: SkillInfo[];
-    permissions: string[];
-}
-class Harm0nyz3rHeader extends ViewPU {
-    constructor(parent, params, __localStorage, elmtId = -1, paramsLambda = undefined, extraInfo) {
-        super(parent, __localStorage, elmtId, extraInfo);
-        if (typeof paramsLambda === "function") {
-            this.paramsGenerator_ = paramsLambda;
-        }
-        this.setInitiallyProvidedValue(params);
-        this.finalizeConstruction();
-    }
-    setInitiallyProvidedValue(params: Harm0nyz3rHeader_Params) {
-    }
-    updateStateVars(params: Harm0nyz3rHeader_Params) {
-    }
-    purgeVariableDependenciesOnElmtId(rmElmtId) {
-    }
-    aboutToBeDeleted() {
-        SubscriberManager.Get().delete(this.id__());
-        this.aboutToBeDeletedInternal();
-    }
-    initialRender() {
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            Column.create();
-            Column.alignItems(HorizontalAlign.Center);
-            Column.margin({ top: 28, bottom: 16 });
-        }, Column);
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            Row.create({ space: 16 });
-        }, Row);
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            // IMPORTANT: Ensure 'app.media.startIcon' exists in your project.
-            // If you don't have this image, replace it with a valid resource or remove.
-            // Using a placeholder image for demonstration purposes if app.media.startIcon is not available.
-            Image.create({ "id": 16777236, "type": 20000, params: [], "bundleName": "com.dekra.harm0nyz3r", "moduleName": "entry" });
-            // IMPORTANT: Ensure 'app.media.startIcon' exists in your project.
-            // If you don't have this image, replace it with a valid resource or remove.
-            // Using a placeholder image for demonstration purposes if app.media.startIcon is not available.
-            Image.width(48);
-            // IMPORTANT: Ensure 'app.media.startIcon' exists in your project.
-            // If you don't have this image, replace it with a valid resource or remove.
-            // Using a placeholder image for demonstration purposes if app.media.startIcon is not available.
-            Image.height(48);
-        }, Image);
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            Text.create('Harm0nyz3r');
-            Text.fontSize(32);
-            Text.fontWeight(FontWeight.Bold);
-            Text.fontColor(Color.Black);
-            Text.margin({ top: 6 });
-        }, Text);
-        Text.pop();
-        Row.pop();
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            Text.create('App Security Tool');
-            Text.fontSize(18);
-            Text.fontWeight(FontWeight.Medium);
-            Text.fontColor(Color.Gray);
-            Text.margin({ top: 2 });
-        }, Text);
-        Text.pop();
-        Column.pop();
-    }
-    rerender() {
-        this.updateDirtyElements();
-    }
-}
+import type { AppInfo, AppSurfaceData, ExposedComponent, SkillInfo, UDMFQueryResult, VulnerableAbility } from '../interfaces/interfaces';
+import { Harm0nyz3rHeader } from "@normalized:N&&&entry/src/main/ets/components/Harm0niz3rHeader&";
+import { BackButton, InfoButton, InvokeButton, RefreshButton } from "@normalized:N&&&entry/src/main/ets/components/Buttons&";
+import { LoadingIcon } from "@normalized:N&&&entry/src/main/ets/components/LoadingIcon&";
+import { IndicatorCircle } from "@normalized:N&&&entry/src/main/ets/components/IndicatorCircle&";
+import router from "@ohos:router";
+import { executeCommand, processShellCommand } from "@normalized:Y&&&libentry.so&";
+import fileIo from "@ohos:file.fs";
 class Index extends ViewPU {
     constructor(parent, params, __localStorage, elmtId = -1, paramsLambda = undefined, extraInfo) {
         super(parent, __localStorage, elmtId, extraInfo);
         if (typeof paramsLambda === "function") {
             this.paramsGenerator_ = paramsLambda;
         }
+        this.abilitiesSearchText = "";
         this.tcpBuffer = "";
         this.context = this.getUIContext().getHostContext() as common.UIAbilityContext;
         this.__port = new ObservedPropertySimplePU('51337', this, "port");
@@ -170,6 +77,7 @@ class Index extends ViewPU {
         this.__udmfStatus = new ObservedPropertySimplePU('', this, "udmfStatus");
         this.__udmfQueryUri = new ObservedPropertySimplePU('udmf://DataHub/bundle/path', this, "udmfQueryUri");
         this.__vulnerableAbilities = new ObservedPropertyObjectPU([], this, "vulnerableAbilities");
+        this.__filteredVulnerableAbilities = new ObservedPropertyObjectPU([], this, "filteredVulnerableAbilities");
         this.__isLoadingAbilities = new ObservedPropertySimplePU(false, this, "isLoadingAbilities");
         this.__selectedAbility = new ObservedPropertyObjectPU(null, this, "selectedAbility");
         this.__customWantAction = new ObservedPropertySimplePU('', this, "customWantAction");
@@ -181,6 +89,9 @@ class Index extends ViewPU {
         this.finalizeConstruction();
     }
     setInitiallyProvidedValue(params: Index_Params) {
+        if (params.abilitiesSearchText !== undefined) {
+            this.abilitiesSearchText = params.abilitiesSearchText;
+        }
         if (params.tcpBuffer !== undefined) {
             this.tcpBuffer = params.tcpBuffer;
         }
@@ -238,6 +149,9 @@ class Index extends ViewPU {
         if (params.vulnerableAbilities !== undefined) {
             this.vulnerableAbilities = params.vulnerableAbilities;
         }
+        if (params.filteredVulnerableAbilities !== undefined) {
+            this.filteredVulnerableAbilities = params.filteredVulnerableAbilities;
+        }
         if (params.isLoadingAbilities !== undefined) {
             this.isLoadingAbilities = params.isLoadingAbilities;
         }
@@ -280,6 +194,7 @@ class Index extends ViewPU {
         this.__udmfStatus.purgeDependencyOnElmtId(rmElmtId);
         this.__udmfQueryUri.purgeDependencyOnElmtId(rmElmtId);
         this.__vulnerableAbilities.purgeDependencyOnElmtId(rmElmtId);
+        this.__filteredVulnerableAbilities.purgeDependencyOnElmtId(rmElmtId);
         this.__isLoadingAbilities.purgeDependencyOnElmtId(rmElmtId);
         this.__selectedAbility.purgeDependencyOnElmtId(rmElmtId);
         this.__customWantAction.purgeDependencyOnElmtId(rmElmtId);
@@ -303,6 +218,7 @@ class Index extends ViewPU {
         this.__udmfStatus.aboutToBeDeleted();
         this.__udmfQueryUri.aboutToBeDeleted();
         this.__vulnerableAbilities.aboutToBeDeleted();
+        this.__filteredVulnerableAbilities.aboutToBeDeleted();
         this.__isLoadingAbilities.aboutToBeDeleted();
         this.__selectedAbility.aboutToBeDeleted();
         this.__customWantAction.aboutToBeDeleted();
@@ -310,6 +226,7 @@ class Index extends ViewPU {
         SubscriberManager.Get().delete(this.id__());
         this.aboutToBeDeletedInternal();
     }
+    private abilitiesSearchText: string;
     private tcpBuffer: string;
     private context;
     private __port: ObservedPropertySimplePU<string>;
@@ -431,6 +348,13 @@ class Index extends ViewPU {
     }
     set vulnerableAbilities(newValue: VulnerableAbility[]) {
         this.__vulnerableAbilities.set(newValue);
+    }
+    private __filteredVulnerableAbilities: ObservedPropertyObjectPU<VulnerableAbility[]>;
+    get filteredVulnerableAbilities() {
+        return this.__filteredVulnerableAbilities.get();
+    }
+    set filteredVulnerableAbilities(newValue: VulnerableAbility[]) {
+        this.__filteredVulnerableAbilities.set(newValue);
     }
     private __isLoadingAbilities: ObservedPropertySimplePU<boolean>;
     get isLoadingAbilities() {
@@ -709,7 +633,7 @@ class Index extends ViewPU {
             this.currentPage = 'details';
             this.status = `App details received for ${this.selectedAppNamespace || 'an app'}`;
             this.detailsViewMode = 'raw';
-            this.resetQueryState(); // RENAMED
+            this.resetQueryState();
         }
         else if (txt.startsWith('HDC_OUTPUT_APP_SURFACE_JSON:')) {
             const jsonOutput = txt.substring('HDC_OUTPUT_APP_SURFACE_JSON:'.length);
@@ -729,7 +653,7 @@ class Index extends ViewPU {
                 this.status = `App surface parse error.`;
                 this.currentPage = 'details';
                 this.detailsViewMode = 'raw';
-                this.resetQueryState(); // RENAMED
+                this.resetQueryState();
             }
         }
         else if (txt.startsWith('HDC_OUTPUT_ERROR:')) {
@@ -738,13 +662,14 @@ class Index extends ViewPU {
             this.currentAppDetails = `Error from PC: ${errorOutput}`;
             this.currentPage = 'details';
             this.detailsViewMode = 'raw';
-            this.resetQueryState(); // RENAMED
+            this.resetQueryState();
         }
         else if (txt.trim().startsWith('HDC_OUTPUT_EXPOSED_ABILITIES:')) {
             const jsonAbilities = txt.substring('HDC_OUTPUT_EXPOSED_ABILITIES:'.length).trim();
             try {
                 const abilities: VulnerableAbility[] = JSON.parse(jsonAbilities);
                 this.vulnerableAbilities = abilities;
+                this.filteredVulnerableAbilities = this.vulnerableAbilities;
                 this.currentPage = 'vulnerableAbilities';
                 this.status = `Received ${this.vulnerableAbilities.length} abilities.`;
                 this.isLoadingAbilities = false;
@@ -754,7 +679,6 @@ class Index extends ViewPU {
                 this.status = `Error parsing abilities: ${JSON.stringify(e)}`;
             }
         }
-        // --- NEW: Handle COMMAND_REQUEST from Python Client ---
         else if (txt.startsWith('COMMAND_REQUEST:')) {
             const commandPayload = txt.substring('COMMAND_REQUEST:'.length).trim();
             hilog.info(0x0000, 'AppLog', `Received COMMAND_REQUEST: ${commandPayload}`);
@@ -774,18 +698,24 @@ class Index extends ViewPU {
                 const groupId = parts.length === 2 ? parts[1] : 'flag'; // Default to 'flag'
                 this.handleAllAppsUDMFQuery(groupId);
             }
-            // --- NEW: Handle vulnerable abilities response ---
-            else if (commandPayload.startsWith('app_visible_abilities')) {
+            else if (commandPayload.startsWith('apps_visible_abilities')) {
                 const parts = commandPayload.split(' ');
                 const sendToApp = parts.includes('-a');
                 if (sendToApp) {
-                    this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
+                    this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
                 }
             }
-            // --- END NEW ---
-            // Add other COMMAND_REQUEST types here if needed in the future
+            else if (commandPayload.startsWith('app_exec')) {
+                const command = commandPayload.substring('app_exec'.length).trim();
+                hilog.info(0x0000, 'AppLog', `Trying to exec ${command}`);
+                this.handleAppExecCommand(command);
+            }
+            else if (commandPayload.startsWith('shell_exec')) {
+                const command = commandPayload.substring('shell_exec'.length).trim();
+                hilog.info(0x0000, 'AppLog', `Trying to shell_exec ${command}`);
+                this.handleShellExecCommand(command);
+            }
         }
-        // --- END NEW ---
         else {
             this.status = `Received partial: ${txt.substring(0, Math.min(txt.length, 50))}...`;
             hilog.info(0x0000, 'AppLog', `Unhandled message: ${txt.substring(0, 50)}...`);
@@ -1036,7 +966,6 @@ class Index extends ViewPU {
             hilog.error(0x0000, 'AppLog', errorMsg);
         }
     }
-    // --- NEW: handleSingleAppUDMFQuery function ---
     private async handleSingleAppUDMFQuery(namespace: string, groupId: string): Promise<void> {
         hilog.info(0x0000, 'AppLog', `Handling single app UDMF query for ${namespace} with group ID ${groupId}`);
         const udmfUri = `udmf://DataHub/${namespace}/${groupId}`;
@@ -1054,8 +983,6 @@ class Index extends ViewPU {
             this.sendToPcClient(`HDC_OUTPUT_ERROR:${errorMsg}`);
         }
     }
-    // --- END NEW ---
-    // --- NEW: handleAllAppsUDMFQuery function ---
     private async handleAllAppsUDMFQuery(groupId: string): Promise<void> {
         hilog.info(0x0000, 'AppLog', `Handling all apps UDMF query with group ID ${groupId}`);
         const appsWithContent: AppInfo[] = [];
@@ -1086,12 +1013,93 @@ class Index extends ViewPU {
         }
         this.sendToPcClient(`UDMF_APPS_WITH_CONTENT:${JSON.stringify(appsWithContent)}`);
     }
-    // --- END NEW ---
+    private async handleAppExecCommand(command: string): Promise<void> {
+        hilog.info(0x0000, 'AppLog', `Executing command: ${command}`);
+        let output: string = '';
+        try {
+            if (typeof executeCommand === 'undefined' || typeof executeCommand !== 'function') {
+                hilog.error(0x0000, 'AppLog', `Native executeCommand function is not available.`);
+                return;
+            }
+            const parts = command.split(' ');
+            const binaryToExecute = parts[0];
+            const commandArguments = parts.slice(1).join(' ');
+            hilog.info(0x0000, 'AppLog', `Attempting to execute: ${command}`);
+            output = executeCommand(binaryToExecute, commandArguments);
+            hilog.info(0x0000, 'AppLog', `Command output: ${output}`);
+        }
+        catch (e) {
+            const error: Error = e as Error;
+            hilog.error(0x0000, 'AppLog', `Command execution failed: %{public}s`, error.message);
+            output = `[ERROR] Failed to execute command: ${command}\nError: ${JSON.stringify(e)}`;
+        }
+        this.sendToPcClient(`EXEC_RESULT: ${output}`);
+    }
+    private async handleShellExecCommand(command: string): Promise<void> {
+        hilog.info(0x0000, 'AppLog', `Executing command: ${command}`);
+        let output: string = '';
+        try {
+            if (typeof executeCommand === 'undefined' || typeof executeCommand !== 'function') {
+                hilog.error(0x0000, 'AppLog', `Native executeCommand function is not available.`);
+                return;
+            }
+            hilog.info(0x0000, 'AppLog', `Attempting to execute: ${command}`);
+            output = processShellCommand(command);
+            hilog.info(0x0000, 'AppLog', `Command output: ${output}`);
+        }
+        catch (e) {
+            const error: Error = e as Error;
+            hilog.error(0x0000, 'AppLog', `Command execution failed: %{public}s`, error.message);
+            output = `[ERROR] Failed to execute shell command: ${command}\nError: ${JSON.stringify(e)}`;
+        }
+        this.sendToPcClient(`EXEC_RESULT: ${output}`);
+    }
     onBackToList(): void {
         this.currentPage = 'list';
         this.resetDetailsState();
         this.resetQueryState();
         this.status = 'Ready for app list.';
+    }
+    private filterAbilities() {
+        if (this.abilitiesSearchText === '') {
+            // Si el cuadro de búsqueda está vacío, muestra la lista completa.
+            this.filteredVulnerableAbilities = this.vulnerableAbilities;
+        }
+        else {
+            // Si hay texto, filtra la lista completa.
+            // El método `toLowerCase()` se usa para hacer la búsqueda insensible a mayúsculas.
+            const lowerCaseSearchText = this.abilitiesSearchText.toLowerCase();
+            this.filteredVulnerableAbilities = this.vulnerableAbilities.filter(ability => 
+            // Filtra por el nombre de la habilidad o el nombre de la app.
+            ability.ability.toLowerCase().includes(lowerCaseSearchText) ||
+                ability.app.toLowerCase().includes(lowerCaseSearchText));
+        }
+    }
+    private async createSandboxFile(fileName: string, fileContent: string): Promise<void> {
+        hilog.info(0x0000, 'WebViewAbility', 'onWindowStageCreate: Starting WebViewAbility.');
+        // Use an immediately invoked async function to handle asynchronous file operations
+        (async () => {
+            let context: common.Context = this.context; // `this.context` is already the AbilityContext here
+            // Get the application's internal files directory (sandbox)
+            const filesDir = await context.filesDir;
+            const fullPath = `${filesDir}/${fileName}`;
+            const localFilePath = `file://${fullPath}`; // Store the file:// URI
+            hilog.info(0x0000, 'AppLog', `Attempting to create file at: ${fullPath}`);
+            try {
+                // Corrected: Explicitly type 'file' as fileio.File, as it represents the file object.
+                // Subsequent operations use file.fd (file descriptor).
+                const file: fileIo.File = fileIo.openSync(fullPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY);
+                fileIo.writeSync(file.fd, fileContent); // Use file.fd for writeSync
+                fileIo.fsyncSync(file.fd); // Use file.fd for fsyncSync to ensure data is flushed
+                fileIo.closeSync(file.fd); // Use file.fd for closeSync
+                hilog.info(0x0000, 'AppLog', `Successfully created local file: ${fullPath}`);
+                hilog.info(0x0000, 'AppLog', `Local file URI to test: ${localFilePath}`);
+            }
+            catch (e) {
+                hilog.error(0x0000, 'AppLog', `Failed to create local file: Code: ${e.code}, Message: ${e.message}`);
+                // Consider updating a global state or log for WebViewPage to show this error
+            }
+        })();
     }
     initialRender() {
         this.observeComponentCreation2((elmtId, isInitialRender) => {
@@ -1104,8 +1112,8 @@ class Index extends ViewPU {
             this.observeComponentCreation2((elmtId, isInitialRender) => {
                 if (isInitialRender) {
                     let componentCall = new 
-                    // 1. App Header
-                    Harm0nyz3rHeader(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 812, col: 7 });
+                    // App Header
+                    Harm0nyz3rHeader(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 853, col: 7 });
                     ViewPU.create(componentCall);
                     let paramsLambda = () => {
                         return {};
@@ -1118,9 +1126,9 @@ class Index extends ViewPU {
             }, { name: "Harm0nyz3rHeader" });
         }
         this.observeComponentCreation2((elmtId, isInitialRender) => {
-            // 2. Server controls and status section
+            // Server controls and status section
             Column.create({ space: 8 });
-            // 2. Server controls and status section
+            // Server controls and status section
             Column.width('100%');
         }, Column);
         this.observeComponentCreation2((elmtId, isInitialRender) => {
@@ -1162,12 +1170,25 @@ class Index extends ViewPU {
             // Server status indicator and text
             Row.padding({ left: 16, right: 16, bottom: 8 });
         }, Row);
-        this.observeComponentCreation2((elmtId, isInitialRender) => {
-            Circle.create();
-            Circle.width(10);
-            Circle.height(10);
-            Circle.fill(this.isRunning ? Color.Green : Color.Red);
-        }, Circle);
+        {
+            this.observeComponentCreation2((elmtId, isInitialRender) => {
+                if (isInitialRender) {
+                    let componentCall = new IndicatorCircle(this, { status: this.isRunning }, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 877, col: 11 });
+                    ViewPU.create(componentCall);
+                    let paramsLambda = () => {
+                        return {
+                            status: this.isRunning
+                        };
+                    };
+                    componentCall.paramsGenerator_ = paramsLambda;
+                }
+                else {
+                    this.updateStateVarsOfChildByElmtId(elmtId, {
+                        status: this.isRunning
+                    });
+                }
+            }, { name: "IndicatorCircle" });
+        }
         this.observeComponentCreation2((elmtId, isInitialRender) => {
             Text.create(`Status: ${this.status}`);
             Text.fontSize(14);
@@ -1175,7 +1196,7 @@ class Index extends ViewPU {
         Text.pop();
         // Server status indicator and text
         Row.pop();
-        // 2. Server controls and status section
+        // Server controls and status section
         Column.pop();
         this.observeComponentCreation2((elmtId, isInitialRender) => {
             Divider.create();
@@ -1186,6 +1207,30 @@ class Index extends ViewPU {
             // 3. Main Content Area (Conditional Rendering using standard if/else if)
             if (this.currentPage === 'list') {
                 this.ifElseBranchUpdateFunction(0, () => {
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        Column.create();
+                    }, Column);
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        Row.create();
+                    }, Row);
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        Column.create();
+                    }, Column);
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        Button.createWithLabel('Shell');
+                        Button.backgroundColor(Color.Black);
+                        Button.fontColor(Color.White);
+                        Button.onClick(() => {
+                            router.pushUrl({ url: 'pages/CommandExecutionPage' });
+                        });
+                    }, Button);
+                    Button.pop();
+                    Column.pop();
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        Blank.create();
+                        Blank.width('5%');
+                    }, Blank);
+                    Blank.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
                         Column.create();
                     }, Column);
@@ -1212,7 +1257,7 @@ class Index extends ViewPU {
                             if (this.vulnerableAbilities.length === 0) {
                                 // No data, send request to server
                                 this.isLoadingAbilities = true;
-                                this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
+                                this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
                                 this.status = 'Requesting invocable abilities from PC...';
                             }
                             else {
@@ -1229,6 +1274,8 @@ class Index extends ViewPU {
                     }, Button);
                     // Button to get a list with all callable abilities (those that we're able to open without privileges)
                     Button.pop();
+                    Column.pop();
+                    Row.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
                         // NEW: Search input for app list
                         TextInput.create({ text: this.searchText, placeholder: 'Search apps...' });
@@ -1362,45 +1409,66 @@ class Index extends ViewPU {
                         Row.create();
                     }, Row);
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
-                        // Back to main view
-                        Button.createWithLabel('← Back to Apps');
-                        // Back to main view
-                        Button.onClick(() => this.currentPage = 'list');
-                        // Back to main view
-                        Button.margin({ bottom: 16 });
-                    }, Button);
-                    // Back to main view
-                    Button.pop();
+                        __Common__.create();
+                        __Common__.onClick(() => this.currentPage = 'list');
+                    }, __Common__);
+                    {
+                        this.observeComponentCreation2((elmtId, isInitialRender) => {
+                            if (isInitialRender) {
+                                let componentCall = new 
+                                // Back to main view
+                                BackButton(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 1021, col: 13 });
+                                ViewPU.create(componentCall);
+                                let paramsLambda = () => {
+                                    return {};
+                                };
+                                componentCall.paramsGenerator_ = paramsLambda;
+                            }
+                            else {
+                                this.updateStateVarsOfChildByElmtId(elmtId, {});
+                            }
+                        }, { name: "BackButton" });
+                    }
+                    __Common__.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
                         Blank.create();
                         Blank.width(12);
                     }, Blank);
                     Blank.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
-                        // Refresh abilities list
-                        Button.createWithLabel('⟳ Refresh');
-                        // Refresh abilities list
-                        Button.backgroundColor(Color.Grey);
-                        // Refresh abilities list
-                        Button.fontColor(Color.White);
-                        // Refresh abilities list
-                        Button.margin({ bottom: 16 });
-                        // Refresh abilities list
-                        Button.onClick(() => {
+                        __Common__.create();
+                        __Common__.onClick(() => {
                             // Clean up list and send request
                             if (this.isConnected) {
                                 this.isLoadingAbilities = true;
                                 this.vulnerableAbilities = [];
-                                this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
+                                this.filteredVulnerableAbilities = [];
+                                this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
                                 this.status = 'Refreshing invocable abilities from PC...';
                             }
                             else {
                                 this.status = 'You are not connected to PC.';
                             }
                         });
-                    }, Button);
-                    // Refresh abilities list
-                    Button.pop();
+                    }, __Common__);
+                    {
+                        this.observeComponentCreation2((elmtId, isInitialRender) => {
+                            if (isInitialRender) {
+                                let componentCall = new 
+                                // Refresh abilities list
+                                RefreshButton(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 1026, col: 13 });
+                                ViewPU.create(componentCall);
+                                let paramsLambda = () => {
+                                    return {};
+                                };
+                                componentCall.paramsGenerator_ = paramsLambda;
+                            }
+                            else {
+                                this.updateStateVarsOfChildByElmtId(elmtId, {});
+                            }
+                        }, { name: "RefreshButton" });
+                    }
+                    __Common__.pop();
                     Row.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
                         // Title
@@ -1415,6 +1483,19 @@ class Index extends ViewPU {
                     // Title
                     Text.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
+                        TextInput.create({ text: this.searchText, placeholder: 'Search apps...' });
+                        TextInput.placeholderColor(Color.Gray);
+                        TextInput.placeholderFont({ size: 14 });
+                        TextInput.backgroundColor(0xFFF8F8F8);
+                        TextInput.borderRadius(8);
+                        TextInput.padding({ left: 10, right: 10, top: 8, bottom: 8 });
+                        TextInput.margin({ bottom: 10, left: 16, right: 16 });
+                        TextInput.onChange((value: string) => {
+                            this.abilitiesSearchText = value;
+                            this.filterAbilities(); // Filter the list as user types
+                        });
+                    }, TextInput);
+                    this.observeComponentCreation2((elmtId, isInitialRender) => {
                         If.create();
                         if (this.isLoadingAbilities) {
                             this.ifElseBranchUpdateFunction(0, () => {
@@ -1422,21 +1503,25 @@ class Index extends ViewPU {
                                     Row.create();
                                     Row.margin({ bottom: 16 });
                                 }, Row);
-                                this.observeComponentCreation2((elmtId, isInitialRender) => {
-                                    LoadingProgress.create();
-                                    LoadingProgress.width(20);
-                                    LoadingProgress.height(20);
-                                    LoadingProgress.margin({ top: 16, right: 8 });
-                                }, LoadingProgress);
-                                this.observeComponentCreation2((elmtId, isInitialRender) => {
-                                    Text.create('Loading ability list...');
-                                    Text.fontSize(14);
-                                    Text.fontColor(Color.Grey);
-                                }, Text);
-                                Text.pop();
+                                {
+                                    this.observeComponentCreation2((elmtId, isInitialRender) => {
+                                        if (isInitialRender) {
+                                            let componentCall = new LoadingIcon(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 1062, col: 15 });
+                                            ViewPU.create(componentCall);
+                                            let paramsLambda = () => {
+                                                return {};
+                                            };
+                                            componentCall.paramsGenerator_ = paramsLambda;
+                                        }
+                                        else {
+                                            this.updateStateVarsOfChildByElmtId(elmtId, {});
+                                        }
+                                    }, { name: "LoadingIcon" });
+                                }
                                 Row.pop();
                             });
                         }
+                        // List
                         else {
                             this.ifElseBranchUpdateFunction(1, () => {
                             });
@@ -1444,9 +1529,9 @@ class Index extends ViewPU {
                     }, If);
                     If.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
-                        // Lista
+                        // List
                         Scroll.create();
-                        // Lista
+                        // List
                         Scroll.height('55%');
                     }, Scroll);
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
@@ -1481,30 +1566,55 @@ class Index extends ViewPU {
                             Text.pop();
                             Column.pop();
                             this.observeComponentCreation2((elmtId, isInitialRender) => {
-                                Button.createWithLabel('Info');
-                                Button.width(60);
-                                Button.backgroundColor(Color.Blue);
-                                Button.margin({ right: 8 });
-                                Button.onClick(() => {
+                                __Common__.create();
+                                __Common__.onClick(() => {
                                     this.selectedAbility = ability;
                                     this.currentPage = 'abilityDetails';
                                 });
-                            }, Button);
-                            Button.pop();
+                            }, __Common__);
+                            {
+                                this.observeComponentCreation2((elmtId, isInitialRender) => {
+                                    if (isInitialRender) {
+                                        let componentCall = new InfoButton(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 1082, col: 19 });
+                                        ViewPU.create(componentCall);
+                                        let paramsLambda = () => {
+                                            return {};
+                                        };
+                                        componentCall.paramsGenerator_ = paramsLambda;
+                                    }
+                                    else {
+                                        this.updateStateVarsOfChildByElmtId(elmtId, {});
+                                    }
+                                }, { name: "InfoButton" });
+                            }
+                            __Common__.pop();
                             this.observeComponentCreation2((elmtId, isInitialRender) => {
-                                Button.createWithLabel('Invoke');
-                                Button.width(80);
-                                Button.backgroundColor(Color.Green);
-                                Button.onClick(() => this.onInvokeAbility(ability.app, ability.ability));
-                            }, Button);
-                            Button.pop();
+                                __Common__.create();
+                                __Common__.onClick(() => this.onInvokeAbility(ability.app, ability.ability));
+                            }, __Common__);
+                            {
+                                this.observeComponentCreation2((elmtId, isInitialRender) => {
+                                    if (isInitialRender) {
+                                        let componentCall = new InvokeButton(this, {}, undefined, elmtId, () => { }, { page: "entry/src/main/ets/pages/Index.ets", line: 1088, col: 19 });
+                                        ViewPU.create(componentCall);
+                                        let paramsLambda = () => {
+                                            return {};
+                                        };
+                                        componentCall.paramsGenerator_ = paramsLambda;
+                                    }
+                                    else {
+                                        this.updateStateVarsOfChildByElmtId(elmtId, {});
+                                    }
+                                }, { name: "InvokeButton" });
+                            }
+                            __Common__.pop();
                             Row.pop();
                         };
-                        this.forEachUpdateFunction(elmtId, this.vulnerableAbilities, forEachItemGenFunction);
+                        this.forEachUpdateFunction(elmtId, this.filteredVulnerableAbilities, forEachItemGenFunction);
                     }, ForEach);
                     ForEach.pop();
                     Column.pop();
-                    // Lista
+                    // List
                     Scroll.pop();
                     Column.pop();
                 });
@@ -2144,22 +2254,27 @@ class Index extends ViewPU {
                     }, If);
                     If.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
-                        // Separador
+                        // Separator
                         Divider.create();
-                        // Separador
+                        // Separator
                         Divider.margin({ top: 16, bottom: 16 });
                     }, Divider);
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
-                        // Formulario de Want
+                        // Text fields to pass want parameters
+                        // TODO: Rework this input
                         Text.create('Launch Want');
-                        // Formulario de Want
+                        // Text fields to pass want parameters
+                        // TODO: Rework this input
                         Text.fontSize(16);
-                        // Formulario de Want
+                        // Text fields to pass want parameters
+                        // TODO: Rework this input
                         Text.fontWeight(FontWeight.Bold);
-                        // Formulario de Want
+                        // Text fields to pass want parameters
+                        // TODO: Rework this input
                         Text.margin({ bottom: 8 });
                     }, Text);
-                    // Formulario de Want
+                    // Text fields to pass want parameters
+                    // TODO: Rework this input
                     Text.pop();
                     this.observeComponentCreation2((elmtId, isInitialRender) => {
                         TextInput.create({ placeholder: 'Action' });

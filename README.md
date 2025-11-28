@@ -126,44 +126,112 @@ The method used by client to receive raw packets is `handlePacket` which after r
 
 ## Adding features
 
-Adding new commands or messages is quite simple:
 
-1. Create callback method which implements the new command's feature:
+## Adding New Commands (New Architecture)
+
+In the refactored Harm0nyz3r architecture, commands are implemented as modular classes
+under the `commands/` package and registered through a central registry.
+
+Adding a new command usually involves three steps:
+
+1. Create a new `Command` subclass in `commands/`.
+2. Register it in `Harm0nyz3r.py`.
+3. (Optional) Add a corresponding handler in the HarmonyOS app, if needed.
+
+---
+
+1. Create a New Command Module
+
+Create a new file, for example:
+
+`commands/example_feature.py`
 
 ```python
-def example_feature_server(self):
-    """A new incredible feature in the server."""
-    
-    return "Testing 123..."
+# commands/example_feature.py
+from typing import List
+
+from .base import Command, CommandSource
+
+
+class ExampleFeatureCommand(Command):
+    @property
+    def name(self) -> str:
+        # CLI name: example_feature
+        return "example_feature"
+
+    @property
+    def supports_logging(self) -> bool:
+        """
+        If True, the console will support:
+          example_feature [args...] --log
+        and wrap execution with device logging (hilog) start/stop.
+        """
+        return False  # Set to True if you want --log support
+
+    def help(self) -> str:
+        return (
+            "example_feature [args]\n"
+            "  A new example feature in the Harm0nyz3r console.\n"
+        )
+
+    def execute(self, console, args: List[str], source: CommandSource) -> None:
+        """
+        Implement the command logic here.
+
+        Parameters:
+          console: HarmonyOSClientConsole instance
+          args: list of CLI arguments (without the command name or --log)
+          source: where the command came from ('cli', 'script', etc.)
+        """
+        console._print_message("INFO", "Executing example_feature...")
+
+        # Example: run an hdc command, talk to the app, etc.
+        # stdout, stderr, ret = console._get_hdc_shell_output(["bm", "dump", "-a"])
+        # console.send_data_to_app("COMMAND_REQUEST:new_feature")
+
+        console._print_message("INFO", "Testing 123... done.")
+
+
+def register(registry_func):
+    """
+    Called from Harm0nyz3r.py to register this command
+    in the global command registry.
+    """
+    registry_func(ExampleFeatureCommand())
 ```
-> Callback example in server.
 
-2. Add entry in receive method (either server or client) for the system to be able to interpret and perform the new feature.
+2. Register the command in Harm0nyz3r
 
 ```python
-def _process_app_command_request(self, command_payload: str):
-
-        [...]
-
-        if cmd == "app_info": [...]
-        elif cmd == "apps_list": [...]
-        elif cmd == "app_surface": [...]
-        elif cmd == "udmf_query_single_app": [...]
-        elif cmd == "udmf_query_all_apps": [...]
-        elif cmd == 'app_visible_abilities': [...]
-        elif cmd == 'invoke_with_want': [...]
-
-        elif cmd == 'new_feature':
-
-            example_feature_server()
-
-        else: [...]
+    from commands import (
+        apps_list,
+        app_info,
+        app_surface,
+        apps_visible_abilities,
+        app_udmf,
+        apps_udmf,
+        app_ability,
+        app_ability_fuzz,
+        app_ability_fuzz_dict,
+        run_script,
+        example_feature,  # <--- new command
+    )
 ```
 > Example to add new command to server command process method.
 
-3. Use new feature (button in Client, command in CLI...)
+3. (Optional) Add a New App-Side Command
 
-> Depending on the functionality implemented the command will be defined in one function or another, the above process is just a simplified view. For instance, if wanted to perform the same `new_feature` command from CLI (which is recommended) should also be specified in `start_console`.
+If the new feature needs to interact with the HarmonyOS app, you can send a
+command from the console to the app:
+
+
+```python
+    console.send_data_to_app("COMMAND_REQUEST:new_feature some arguments")
+```
+
+4. Use new feature (button in Client, command in CLI...)
+
+> Depending on the functionality implemented the command will be defined in one function or another, the above process is just a simplified view. For instance, if wanted to perform the same `example_feature` command from CLI (which is recommended) should also be specified in `start_console`.
 > Or if the feature returns a value back to be displayed on the app, the callback will define a message type and that message should be properly defined in app.
 
 # Authors

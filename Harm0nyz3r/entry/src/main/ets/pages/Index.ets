@@ -8,84 +8,25 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 import { unifiedDataChannel, uniformTypeDescriptor, uniformDataStruct } from '@kit.ArkData'; // ADDED uniformTypeDescriptor, uniformDataStruct
 import { notificationManager } from '@kit.NotificationKit'; // For managing notifications (now directly used in UIAbility)
+import { AppInfo, AppSurfaceData,
+  ExposedComponent,
+  SkillInfo,
+  UDMFQueryResult, VulnerableAbility } from '../interfaces/interfaces';
+import { Harm0nyz3rHeader } from '../components/Harm0niz3rHeader';
+import { BackButton, InfoButton, InvokeButton, RefreshButton } from '../components/Buttons';
+import { LoadingIcon } from '../components/LoadingIcon';
+import { IndicatorCircle } from '../components/IndicatorCircle';
+import { router } from '@kit.ArkUI';
 
-
-// Define an interface for our app data structure
-interface AppInfo {
-  name: string;         // User-friendly name (which will be the bundleName in this case)
-  bundleName: string;   // The actual bundle name (namespace)
-}
-
-interface SkillInfo {
-  action?: string;
-  entity?: string;
-  scheme?: string;
-  type?: string;
-  utd?: string[];
-}
-
-interface ExposedComponent {
-  name: string;
-  type: string;
-  visible: boolean;
-  permissionsRequired: string[];
-  skills: SkillInfo[];
-  // REMOVED: dataShareUri as we are no longer focusing on DataShare specific URIs here
-}
-
-interface AppSurfaceData {
-  bundleName: string;
-  debugMode: boolean;
-  systemApp: boolean;
-  requiredAppPermissions: string[];
-  exposedComponents: ExposedComponent[];
-}
-
-// NEW: Interface for UDMF query result payload
-interface UDMFQueryResult {
-  uri: string;
-  content: string[];
-}
-
-interface VulnerableAbility {
-  app: string;         // bundleName
-  ability: string;     // ability name
-  skills: SkillInfo[];
-  permissions: string[];
-}
-
-// New Header Component
-@Component
-struct Harm0nyz3rHeader {
-  build() {
-    Column() {
-      Row({ space: 16 }) {
-        // IMPORTANT: Ensure 'app.media.startIcon' exists in your project.
-        // If you don't have this image, replace it with a valid resource or remove.
-        // Using a placeholder image for demonstration purposes if app.media.startIcon is not available.
-        Image($r('app.media.startIcon'))
-          .width(48)
-          .height(48)
-        Text('Harm0nyz3r')
-          .fontSize(32)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Color.Black)
-          .margin({ top: 6 })
-      }
-      Text('App Security Tool')
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(Color.Gray)
-        .margin({ top: 2 })
-    }
-    .alignItems(HorizontalAlign.Center)
-    .margin({ top: 28, bottom: 16 }) // Provides vertical spacing for the header
-  }
-}
+import { executeCommand, processShellCommand } from 'libentry.so';
+import File from '@system.file';
+import fs from '@ohos.file.fs';
+import fileIo from '@ohos.file.fs';
 
 @Entry
 @Component
 struct Index {
+  private abilitiesSearchText: string = "";
 
   private tcpBuffer: string = "";
 
@@ -112,7 +53,7 @@ struct Index {
 
   //State to get invokable abilities
   @State vulnerableAbilities: VulnerableAbility[] = [];
-
+  @State filteredVulnerableAbilities: VulnerableAbility[] = [];
 
   @State isLoadingAbilities: boolean = false;
 
@@ -388,7 +329,7 @@ struct Index {
       this.currentPage = 'details';
       this.status = `App details received for ${this.selectedAppNamespace || 'an app'}`;
       this.detailsViewMode = 'raw';
-      this.resetQueryState(); // RENAMED
+      this.resetQueryState();
 
     }
     else if (txt.startsWith('HDC_OUTPUT_APP_SURFACE_JSON:')) {
@@ -408,7 +349,7 @@ struct Index {
         this.status = `App surface parse error.`;
         this.currentPage = 'details';
         this.detailsViewMode = 'raw';
-        this.resetQueryState(); // RENAMED
+        this.resetQueryState();
       }
     }
     else if (txt.startsWith('HDC_OUTPUT_ERROR:')) {
@@ -417,13 +358,14 @@ struct Index {
       this.currentAppDetails = `Error from PC: ${errorOutput}`;
       this.currentPage = 'details';
       this.detailsViewMode = 'raw';
-      this.resetQueryState(); // RENAMED
+      this.resetQueryState();
     }
     else if (txt.trim().startsWith('HDC_OUTPUT_EXPOSED_ABILITIES:')) {
       const jsonAbilities = txt.substring('HDC_OUTPUT_EXPOSED_ABILITIES:'.length).trim();
       try {
         const abilities: VulnerableAbility[] = JSON.parse(jsonAbilities);
         this.vulnerableAbilities = abilities;
+        this.filteredVulnerableAbilities = this.vulnerableAbilities;
         this.currentPage = 'vulnerableAbilities';
         this.status = `Received ${this.vulnerableAbilities.length} abilities.`;
         this.isLoadingAbilities = false
@@ -432,8 +374,6 @@ struct Index {
         this.status = `Error parsing abilities: ${JSON.stringify(e)}`;
       }
     }
-
-    // --- NEW: Handle COMMAND_REQUEST from Python Client ---
     else if (txt.startsWith('COMMAND_REQUEST:')) {
       const commandPayload = txt.substring('COMMAND_REQUEST:'.length).trim();
       hilog.info(0x0000, 'AppLog', `Received COMMAND_REQUEST: ${commandPayload}`);
@@ -452,19 +392,25 @@ struct Index {
         const groupId = parts.length === 2 ? parts[1] : 'flag'; // Default to 'flag'
         this.handleAllAppsUDMFQuery(groupId);
       }
-      // --- NEW: Handle vulnerable abilities response ---
-      else if (commandPayload.startsWith('app_visible_abilities')) {
+      else if (commandPayload.startsWith('apps_visible_abilities')) {
         const parts = commandPayload.split(' ');
         const sendToApp = parts.includes('-a');
 
         if (sendToApp) {
-          this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
+          this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
         }
       }
-      // --- END NEW ---
-      // Add other COMMAND_REQUEST types here if needed in the future
+      else if (commandPayload.startsWith('app_exec')) {
+        const command = commandPayload.substring('app_exec'.length).trim();
+        hilog.info(0x0000, 'AppLog', `Trying to exec ${command}`);
+        this.handleAppExecCommand(command);
+      }
+      else if (commandPayload.startsWith('shell_exec')) {
+        const command = commandPayload.substring('shell_exec'.length).trim();
+        hilog.info(0x0000, 'AppLog', `Trying to shell_exec ${command}`);
+        this.handleShellExecCommand(command);
+      }
     }
-    // --- END NEW ---
     else {
       this.status = `Received partial: ${txt.substring(0, Math.min(txt.length, 50))}...`;
       hilog.info(0x0000, 'AppLog', `Unhandled message: ${txt.substring(0, 50)}...`);
@@ -681,43 +627,43 @@ struct Index {
     }
 
 
-      const options: unifiedDataChannel.Options = { intention: unifiedDataChannel.Intention.DATA_HUB, key: udmfFullUri };
+    const options: unifiedDataChannel.Options = { intention: unifiedDataChannel.Intention.DATA_HUB, key: udmfFullUri };
 
-      // Wrap the callback-based unifiedDataChannel.queryData into a Promise
-      const dataList: unifiedDataChannel.UnifiedData[] = await new Promise<unifiedDataChannel.UnifiedData[]>((resolve, reject) => { // FIXED: Explicitly type Promise
-        unifiedDataChannel.queryData(options, (err: BusinessError | null, data: unifiedDataChannel.UnifiedData[]) => {
-          if (err) {
-            hilog.error(0x0000, 'UDMFService', `Error querying UDMF for key ${udmfFullUri} in Promise wrapper: Code: %{public}s, Message: %{public}s, Name: %{public}s, Stack: %{public}s`,
-              err.code, err.message, err.name, err.stack);
-            reject(err); // Reject the promise on error
-          } else {
-            resolve(data); // Resolve the promise with data
-          }
-        });
+    // Wrap the callback-based unifiedDataChannel.queryData into a Promise
+    const dataList: unifiedDataChannel.UnifiedData[] = await new Promise<unifiedDataChannel.UnifiedData[]>((resolve, reject) => { // FIXED: Explicitly type Promise
+      unifiedDataChannel.queryData(options, (err: BusinessError | null, data: unifiedDataChannel.UnifiedData[]) => {
+        if (err) {
+          hilog.error(0x0000, 'UDMFService', `Error querying UDMF for key ${udmfFullUri} in Promise wrapper: Code: %{public}s, Message: %{public}s, Name: %{public}s, Stack: %{public}s`,
+            err.code, err.message, err.name, err.stack);
+          reject(err); // Reject the promise on error
+        } else {
+          resolve(data); // Resolve the promise with data
+        }
       });
+    });
 
-      const foundContents: string[] = [];
-      if (Array.isArray(dataList) && dataList.length > 0) {
-        for (let i = 0; i < dataList.length; i++) {
-          let records: unifiedDataChannel.UnifiedRecord[] = dataList[i].getRecords();
-          for (let j = 0; j < records.length; j++) {
-            let types: string[] = records[j].getTypes();
-            if (types.includes(uniformTypeDescriptor.UniformDataType.PLAIN_TEXT)) {
-              let textObj = records[j].getEntry(uniformTypeDescriptor.UniformDataType.PLAIN_TEXT) as uniformDataStruct.PlainText;
-              if (textObj.textContent && textObj.textContent.length > 0) {
-                foundContents.push(textObj.textContent);
-                hilog.info(0x0000, 'UDMFService', `Found content for key ${udmfFullUri}, record ${j}: %{public}s`, textObj.textContent.substring(0, Math.min(textObj.textContent.length, 50)) + (textObj.textContent.length > 50 ? '...' : ''));
-              } else {
-                hilog.info(0x0000, 'UDMFService', `PlainText content for key ${udmfFullUri}, record ${j} was empty.`);
-              }
+    const foundContents: string[] = [];
+    if (Array.isArray(dataList) && dataList.length > 0) {
+      for (let i = 0; i < dataList.length; i++) {
+        let records: unifiedDataChannel.UnifiedRecord[] = dataList[i].getRecords();
+        for (let j = 0; j < records.length; j++) {
+          let types: string[] = records[j].getTypes();
+          if (types.includes(uniformTypeDescriptor.UniformDataType.PLAIN_TEXT)) {
+            let textObj = records[j].getEntry(uniformTypeDescriptor.UniformDataType.PLAIN_TEXT) as uniformDataStruct.PlainText;
+            if (textObj.textContent && textObj.textContent.length > 0) {
+              foundContents.push(textObj.textContent);
+              hilog.info(0x0000, 'UDMFService', `Found content for key ${udmfFullUri}, record ${j}: %{public}s`, textObj.textContent.substring(0, Math.min(textObj.textContent.length, 50)) + (textObj.textContent.length > 50 ? '...' : ''));
+            } else {
+              hilog.info(0x0000, 'UDMFService', `PlainText content for key ${udmfFullUri}, record ${j} was empty.`);
             }
           }
         }
-        hilog.info(0x0000, 'UDMFService', `Finished querying UDMF for key ${udmfFullUri}. Found ${foundContents.length} items.`);
-      } else {
-        hilog.info(0x0000, 'UDMFService', `No data list returned for key: ${udmfFullUri}.`);
       }
-      return foundContents; // Always return foundContents array on success
+      hilog.info(0x0000, 'UDMFService', `Finished querying UDMF for key ${udmfFullUri}. Found ${foundContents.length} items.`);
+    } else {
+      hilog.info(0x0000, 'UDMFService', `No data list returned for key: ${udmfFullUri}.`);
+    }
+    return foundContents; // Always return foundContents array on success
 
   }
 
@@ -746,7 +692,6 @@ struct Index {
     }
   }
 
-  // --- NEW: handleSingleAppUDMFQuery function ---
   private async handleSingleAppUDMFQuery(namespace: string, groupId: string): Promise<void> {
     hilog.info(0x0000, 'AppLog', `Handling single app UDMF query for ${namespace} with group ID ${groupId}`);
     const udmfUri = `udmf://DataHub/${namespace}/${groupId}`;
@@ -763,9 +708,7 @@ struct Index {
       this.sendToPcClient(`HDC_OUTPUT_ERROR:${errorMsg}`);
     }
   }
-  // --- END NEW ---
 
-  // --- NEW: handleAllAppsUDMFQuery function ---
   private async handleAllAppsUDMFQuery(groupId: string): Promise<void> {
     hilog.info(0x0000, 'AppLog', `Handling all apps UDMF query with group ID ${groupId}`);
     const appsWithContent: AppInfo[] = [];
@@ -797,7 +740,56 @@ struct Index {
     }
     this.sendToPcClient(`UDMF_APPS_WITH_CONTENT:${JSON.stringify(appsWithContent)}`);
   }
-  // --- END NEW ---
+
+  private async handleAppExecCommand(command: string): Promise<void> {
+    hilog.info(0x0000, 'AppLog', `Executing command: ${command}`);
+    let output: string = '';
+
+    try {
+      if (typeof executeCommand === 'undefined' || typeof executeCommand !== 'function'){
+        hilog.error(0x0000, 'AppLog', `Native executeCommand function is not available.`);
+        return;
+      }
+
+      const parts = command.split(' ');
+      const binaryToExecute = parts[0];
+      const commandArguments = parts.slice(1).join(' ');
+
+      hilog.info(0x0000, 'AppLog', `Attempting to execute: ${command}`);
+      output = executeCommand(binaryToExecute, commandArguments);
+      hilog.info(0x0000, 'AppLog', `Command output: ${output}`);
+    }
+    catch (e) {
+      const error: Error = e as Error;
+      hilog.error(0x0000, 'AppLog', `Command execution failed: %{public}s`, error.message);
+      output = `[ERROR] Failed to execute command: ${command}\nError: ${JSON.stringify(e)}`;
+
+    }
+    this.sendToPcClient(`EXEC_RESULT: ${output}`);
+  }
+
+  private async handleShellExecCommand(command: string): Promise<void> {
+    hilog.info(0x0000, 'AppLog', `Executing command: ${command}`);
+    let output: string = '';
+
+    try {
+      if (typeof executeCommand === 'undefined' || typeof executeCommand !== 'function'){
+        hilog.error(0x0000, 'AppLog', `Native executeCommand function is not available.`);
+        return;
+      }
+
+      hilog.info(0x0000, 'AppLog', `Attempting to execute: ${command}`);
+      output = processShellCommand(command);
+      hilog.info(0x0000, 'AppLog', `Command output: ${output}`);
+    }
+    catch (e) {
+      const error: Error = e as Error;
+      hilog.error(0x0000, 'AppLog', `Command execution failed: %{public}s`, error.message);
+      output = `[ERROR] Failed to execute shell command: ${command}\nError: ${JSON.stringify(e)}`;
+
+    }
+    this.sendToPcClient(`EXEC_RESULT: ${output}`);
+  }
 
   onBackToList(): void {
     this.currentPage = 'list';
@@ -806,12 +798,61 @@ struct Index {
     this.status = 'Ready for app list.';
   }
 
+  private filterAbilities() {
+    if (this.abilitiesSearchText === '') {
+      // Si el cuadro de búsqueda está vacío, muestra la lista completa.
+      this.filteredVulnerableAbilities = this.vulnerableAbilities;
+    } else {
+      // Si hay texto, filtra la lista completa.
+      // El método `toLowerCase()` se usa para hacer la búsqueda insensible a mayúsculas.
+      const lowerCaseSearchText = this.abilitiesSearchText.toLowerCase();
+
+      this.filteredVulnerableAbilities = this.vulnerableAbilities.filter(ability =>
+      // Filtra por el nombre de la habilidad o el nombre de la app.
+      ability.ability.toLowerCase().includes(lowerCaseSearchText) ||
+      ability.app.toLowerCase().includes(lowerCaseSearchText)
+      );
+    }
+  }
+  private async createSandboxFile(fileName: string, fileContent: string): Promise<void> {
+    hilog.info(0x0000, 'WebViewAbility', 'onWindowStageCreate: Starting WebViewAbility.');
+
+    // Use an immediately invoked async function to handle asynchronous file operations
+    (async () => {
+      let context: common.Context = this.context; // `this.context` is already the AbilityContext here
+      // Get the application's internal files directory (sandbox)
+      const filesDir = await context.filesDir;
+      const fullPath = `${filesDir}/${fileName}`;
+      const localFilePath = `file://${fullPath}`; // Store the file:// URI
+
+      hilog.info(0x0000, 'AppLog', `Attempting to create file at: ${fullPath}`);
+
+      try {
+        // Corrected: Explicitly type 'file' as fileio.File, as it represents the file object.
+        // Subsequent operations use file.fd (file descriptor).
+        const file: fileIo.File = fileIo.openSync(fullPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY);
+
+        fileIo.writeSync(file.fd, fileContent); // Use file.fd for writeSync
+        fileIo.fsyncSync(file.fd); // Use file.fd for fsyncSync to ensure data is flushed
+        fileIo.closeSync(file.fd); // Use file.fd for closeSync
+
+        hilog.info(0x0000, 'AppLog', `Successfully created local file: ${fullPath}`);
+        hilog.info(0x0000, 'AppLog', `Local file URI to test: ${localFilePath}`);
+
+      } catch (e) {
+        hilog.error(0x0000, 'AppLog', `Failed to create local file: Code: ${e.code}, Message: ${e.message}`);
+        // Consider updating a global state or log for WebViewPage to show this error
+      }
+    })()
+  }
+
   build() {
-    Column() { // Main container column, full width and height
-      // 1. App Header
+    Column() {
+
+      // App Header
       Harm0nyz3rHeader();
 
-      // 2. Server controls and status section
+      // Server controls and status section
       Column({ space: 8 }) { // Groups port input, buttons, and status
         // Port input and Start/Stop buttons
         Row({ space: 8 }) { // Arrange elements horizontally
@@ -825,7 +866,7 @@ struct Index {
             .layoutWeight(1) // Allows button to take available space
             .onClick(() => this.startServer());
           Button('Stop Server')
-            .layoutWeight(1) // Allows button to take available space
+            .layoutWeight(1)
             .onClick(() => this.stopServer());
         }
         .width('100%') // Ensures the row spans the full full width of its parent
@@ -833,10 +874,7 @@ struct Index {
 
         // Server status indicator and text
         Row({ space: 8 }) {
-          Circle()
-            .width(10) // Size of the indicator circle
-            .height(10)
-            .fill(this.isRunning ? Color.Green : Color.Red); // Green if running, Red if not
+          IndicatorCircle({ status: this.isRunning });
           Text(`Status: ${this.status}`).fontSize(14);
         }
         .padding({ left: 16, right: 16, bottom: 8 }); // Padding for this status row
@@ -848,35 +886,58 @@ struct Index {
       // 3. Main Content Area (Conditional Rendering using standard if/else if)
       if (this.currentPage === 'list') {
         Column() {
-          Button('Get App List from PC')
-            .backgroundColor(Color.Blue)
-            .fontColor(Color.White)
-            .margin({ bottom: 10 })
-            .onClick(() => this.requestAppListFromPC());
+          Row(){
+            Column(){
+              Button('Shell')
+                .backgroundColor(Color.Black)
+                .fontColor(Color.White)
+                .onClick( () => {
+                  router.pushUrl({ url: 'pages/CommandExecutionPage' })
+                })
 
-          // Button to get a list with all callable abilities (those that we're able to open without privileges)
-          Button('Get abilities from PC')
-            .backgroundColor(Color.Green)
-            .fontColor(Color.White)
-            .margin({ bottom: 10 })
-            .onClick(() => {
-              // Due to slowness of request innecessary interactions with server are skipped
-              if (this.vulnerableAbilities.length === 0) {
-                // No data, send request to server
-                this.isLoadingAbilities = true;
-                this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
-                this.status = 'Requesting invocable abilities from PC...';
-              } else {
-                // Already saved data, skip server request
-                this.status = 'Using cached invocable abilities.';
-              }
+             /* Button('Create File')
+                .backgroundColor(Color.Orange)
+                .fontColor(Color.Black)
+                .onClick( () => {
+                  this.createSandboxFile('secret.txt', 'helloWorld')
+                }) */
+            }
 
-              if (this.isConnected) {
-                this.currentPage = 'vulnerableAbilities';
-              } else {
-                this.status = 'You are not connected to PC.';
-              }
-            });
+
+            Blank().width('5%')
+
+            Column(){
+              Button('Get App List from PC')
+                .backgroundColor(Color.Blue)
+                .fontColor(Color.White)
+                .margin({ bottom: 10 })
+                .onClick(() => this.requestAppListFromPC());
+
+              // Button to get a list with all callable abilities (those that we're able to open without privileges)
+              Button('Get abilities from PC')
+                .backgroundColor(Color.Green)
+                .fontColor(Color.White)
+                .margin({ bottom: 10 })
+                .onClick(() => {
+                  // Due to slowness of request innecessary interactions with server are skipped
+                  if (this.vulnerableAbilities.length === 0) {
+                    // No data, send request to server
+                    this.isLoadingAbilities = true;
+                    this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
+                    this.status = 'Requesting invocable abilities from PC...';
+                  } else {
+                    // Already saved data, skip server request
+                    this.status = 'Using cached invocable abilities.';
+                  }
+
+                  if (this.isConnected) {
+                    this.currentPage = 'vulnerableAbilities';
+                  } else {
+                    this.status = 'You are not connected to PC.';
+                  }
+                });
+            }
+          }
 
           // NEW: Search input for app list
           TextInput({ text: this.searchText, placeholder: 'Search apps...' })
@@ -957,29 +1018,26 @@ struct Index {
         Column() {
           Row(){
             // Back to main view
-            Button('← Back to Apps')
-              .onClick(() => this.currentPage = 'list')
-              .margin({ bottom: 16 });
+            BackButton().onClick(() => this.currentPage = 'list');
 
             Blank().width(12); // Separator
 
             // Refresh abilities list
-            Button('⟳ Refresh')
-              .backgroundColor(Color.Grey)
-              .fontColor(Color.White)
-              .margin({ bottom: 16 })
+            RefreshButton()
               .onClick(() => {
                 // Clean up list and send request
                 if (this.isConnected) {
                   this.isLoadingAbilities = true;
                   this.vulnerableAbilities = [];
-                  this.sendToPcClient('COMMAND_REQUEST:app_visible_abilities -a');
+                  this.filteredVulnerableAbilities = [];
+                  this.sendToPcClient('COMMAND_REQUEST:apps_visible_abilities -a');
                   this.status = 'Refreshing invocable abilities from PC...';
                 }
                 else {
                   this.status = 'You are not connected to PC.';
                 }
               });
+
           }
           // Title
           Text('Invocable Abilities')
@@ -987,26 +1045,29 @@ struct Index {
             .fontWeight(FontWeight.Bold)
             .margin({ top: 16, bottom: 16 });
 
+          TextInput({ text: this.searchText, placeholder: 'Search apps...' })
+            .placeholderColor(Color.Gray)
+            .placeholderFont({ size: 14 })
+            .backgroundColor(0xFFF8F8F8)
+            .borderRadius(8)
+            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+            .margin({ bottom: 10, left: 16, right: 16 })
+            .onChange((value: string) => {
+              this.abilitiesSearchText = value;
+              this.filterAbilities(); // Filter the list as user types
+            });
+
           if (this.isLoadingAbilities) {
             Row() {
-              LoadingProgress()
-                .width(20)
-                .height(20)
-                .margin({ top: 16, right: 8 });
-              Text('Loading ability list...')
-                .fontSize(14)
-                .fontColor(Color.Grey);
+              LoadingIcon();
             }
             .margin({ bottom: 16 });
           }
-          else {
 
-          }
-
-          // Lista
+          // List
           Scroll() {
             Column() {
-              ForEach(this.vulnerableAbilities, (ability: VulnerableAbility) => {
+              ForEach(this.filteredVulnerableAbilities, (ability: VulnerableAbility) => {
                 Row() {
                   Column() {
                     Text(ability.ability)
@@ -1018,18 +1079,14 @@ struct Index {
                   }
                   .layoutWeight(1);
 
-                  Button('Info')
-                    .width(60)
-                    .backgroundColor(Color.Blue)
-                    .margin({ right: 8 }) // Space between buttons
+                  InfoButton()
                     .onClick(() => {
-                      this.selectedAbility = ability;
-                      this.currentPage = 'abilityDetails';
-                    });
-                  Button('Invoke')
-                    .width(80)
-                    .backgroundColor(Color.Green)
-                    .onClick(() => this.onInvokeAbility(ability.app, ability.ability)); // <-- Usa las propiedades correctas
+                    this.selectedAbility = ability;
+                    this.currentPage = 'abilityDetails';
+                  });
+
+                  InvokeButton()
+                    .onClick(() => this.onInvokeAbility(ability.app, ability.ability));
                 }
                 .padding(12)
                 .margin({ bottom: 10 })
@@ -1345,4 +1402,5 @@ struct Index {
     .height('100%')
     .justifyContent(FlexAlign.Start);
   }
+
 }

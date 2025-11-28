@@ -4,7 +4,7 @@
 export const BUNDLE_NAME = 'com.dekra.harm0nyz3r';
 export const BUNDLE_TYPE = 'app';
 export const VERSION_CODE = 1000000;
-export const VERSION_NAME = '1.1.0';
+export const VERSION_NAME = '1.2.2';
 export const TARGET_NAME = 'default';
 export const PRODUCT_NAME = 'default';
 export const BUILD_MODE_NAME = 'debug';

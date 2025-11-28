@@ -6,7 +6,7 @@ SERVER_HOST = '127.0.0.1'
 PORT = 51337
 BUFFER_SIZE = 8192*2 # Max size for single message. Keep in mind for very long lists.
 HDC_COMMAND = 'hdc'
-
+SHELL_EXEC_PROMPT = "[shell] $ "
 # ASCII Art for initial run: Rising sun between mountains with "Harm0nyz3r"
 HARMONYZER_ASCII = f"""
             .-----.
