@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\Testing\\.ohos\\config\\default_Harm0nyz3r_9D326DSVnqt4whTC8v8r119OXlaO9PTh-uFr91rofTE=.cer",
+          "certpath": "C:\\Users\\jwr\\.ohos\\config\\default_Harm0nyz3r_4czf2oxkSS_2f8Z6eK9E-OF8bUqm5IXKqIHMrtXL-DE=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "00000019CA01E85C91EBC98BE17D95FD5D82F1CC0B097B39573BDDF4B50DD17A1D82A5C126F39BCB89",
-          "profile": "C:\\Users\\Testing\\.ohos\\config\\default_Harm0nyz3r_9D326DSVnqt4whTC8v8r119OXlaO9PTh-uFr91rofTE=.p7b",
+          "keyPassword": "0000001B6A4FC073992DCBDE7FDF6C6FD4B35089E1EC0383319EE5502DE333902A9FFECD0D5189BA4061ED",
+          "profile": "C:\\Users\\jwr\\.ohos\\config\\default_Harm0nyz3r_4czf2oxkSS_2f8Z6eK9E-OF8bUqm5IXKqIHMrtXL-DE=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\Testing\\.ohos\\config\\default_Harm0nyz3r_9D326DSVnqt4whTC8v8r119OXlaO9PTh-uFr91rofTE=.p12",
-          "storePassword": "000000198F94B63DC701C8EBFFE633C0B853E002801B821D4B3C962DE4F8C0D0E923E3E2F42C83577C"
+          "storeFile": "C:\\Users\\jwr\\.ohos\\config\\default_Harm0nyz3r_4czf2oxkSS_2f8Z6eK9E-OF8bUqm5IXKqIHMrtXL-DE=.p12",
+          "storePassword": "0000001B64A70A9135F974900990C9397B8EAA77C8B80A63D7E56AADF1332FFDA706F58F3C7B45415FA3D0"
         }
       }
     ],

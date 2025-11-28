@@ -1,0 +1,6 @@
+{
+  "name": "libentry.so",
+  "types": "./index.d.ts",
+  "version": "1.2.0",
+  "description": "DVHA is a deliberate vulnerable Harmony OS app to show common vulnerabilities and train researchers."
+}
