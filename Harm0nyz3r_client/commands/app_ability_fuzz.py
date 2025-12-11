@@ -1,4 +1,5 @@
 # commands/app_ability_fuzz.py
+import os
 import re
 import random
 import string
@@ -105,7 +106,8 @@ class AppAbilityFuzzCommand(Command):
 
     def help(self) -> str:
         return (
-            "app_ability_fuzz <namespace> <abilityName> [--count N] [--delay ms] [key=value ...] [--log]\n"
+            "app_ability_fuzz <namespace> <abilityName> "
+            "[--count N] [--delay ms] [key=value ...] [--log]\n"
             "\n"
             "Start an ability repeatedly with a Want whose parameters can be fixed or fuzzed.\n"
             "\n"
@@ -124,8 +126,10 @@ class AppAbilityFuzzCommand(Command):
             "\n"
             "Examples:\n"
             "  app_ability_fuzz com.example.app MainAbility --count 50 name=?s\n"
-            "  app_ability_fuzz com.example.app MainAbility --count 10 action=ohos.want.action.view id=?i premium=?b\n"
-            "  app_ability_fuzz com.example.app MainAbility --count 20 --delay 200 uri=? mime=text/plain\n"
+            "  app_ability_fuzz com.example.app MainAbility --count 10 "
+            "action=ohos.want.action.view id=?i premium=?b\n"
+            "  app_ability_fuzz com.example.app MainAbility --count 20 "
+            "--delay 200 uri=? mime=text/plain\n"
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
@@ -226,7 +230,7 @@ class AppAbilityFuzzCommand(Command):
                     "mode": mode,
                     "fixed_value": fixed_value,
                     "fixed_type": fixed_type,
-                    "last_value": None,  # NEW: used for mutational fuzzing
+                    "last_value": None,  # used for mutational fuzzing
                 }
             )
 
@@ -237,106 +241,149 @@ class AppAbilityFuzzCommand(Command):
                 "You can still start the ability, but there is nothing to mutate.",
             )
 
+        # Set up per-session command log (independent of device --log)
+        start_time = time.time()
+        log_file = None
+        log_path = None
+        try:
+            log_dir = os.path.join(os.getcwd(), "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            start_ts = time.strftime("%Y%m%d_%H%M%S", time.localtime(start_time))
+            safe_ns = re.sub(r"[^a-zA-Z0-9_.-]", "_", namespace)
+            safe_ab = re.sub(r"[^a-zA-Z0-9_.-]", "_", ability_name)
+            log_name = f"{self.name}_{safe_ns}_{safe_ab}_{start_ts}.log"
+            log_path = os.path.join(log_dir, log_name)
+            log_file = open(log_path, "w", encoding="utf-8")
+            log_file.write("# app_ability_fuzz command log\n")
+            log_file.write(f"# namespace={namespace}\n")
+            log_file.write(f"# ability={ability_name}\n")
+            log_file.write(f"# count={count}\n")
+            log_file.write(f"# delay_ms={delay_ms}\n\n")
+            log_file.flush()
+            console._print_message("INFO", f"Fuzzer command log: {log_path}")
+        except Exception as e:
+            console._print_message(
+                "WARNING",
+                f"Could not create fuzzer command log file: {e}",
+            )
+            log_file = None
+
         console._print_message(
             "INFO",
             f"Starting fuzzing: ability='{ability_name}', app='{namespace}', "
             f"iterations={count}, delay={delay_ms} ms",
         )
 
-        # Main fuzzing loop
-        for iteration in range(1, count + 1):
-            # Base aa start command
-            cmd = ["aa", "start", "-a", ability_name, "-b", namespace]
+        try:
+            # Main fuzzing loop
+            for iteration in range(1, count + 1):
+                # Base aa start command
+                cmd = ["aa", "start", "-a", ability_name, "-b", namespace]
 
-            # Build Want parameters for this iteration
-            for spec in param_specs:
-                key: str = spec["key"]
-                mode: FuzzMode = spec["mode"]  # type: ignore[assignment]
-                fixed_value: Optional[str] = spec["fixed_value"]
-                fixed_type: Optional[str] = spec["fixed_type"]
+                # Build Want parameters for this iteration
+                for spec in param_specs:
+                    key: str = spec["key"]
+                    mode: FuzzMode = spec["mode"]  # type: ignore[assignment]
+                    fixed_value: Optional[str] = spec["fixed_value"]
+                    fixed_type: Optional[str] = spec["fixed_type"]
 
-                # Decide on value and type for this iteration
-                if mode == "fixed":
-                    value = fixed_value
-                    value_type = (
-                        _infer_type_from_value(value)  # type: ignore[arg-type]
-                        if key not in ("action", "uri", "entity", "mime")
-                        else "string"
-                    )
-                else:
-                    # Fuzzed (mutational for strings)
-                    if mode == "string":
-                        value_type = "string"
-                    elif mode == "int":
-                        value_type = "int"
-                    elif mode == "bool":
-                        value_type = "bool"
-                    else:  # auto
-                        value_type = _choose_auto_type()
-
-                    # Generate fuzzed value
-                    if value_type == "string":
-                        # Mutational: seed from last_value or fixed_value if available
-                        base_seed = spec.get("last_value") or spec.get("fixed_value")
-                        value = _fuzz_string(base=base_seed)
-                        spec["last_value"] = value
-                    elif value_type == "int":
-                        value = str(_fuzz_int())
-                        spec["last_value"] = value
-                    else:  # bool
-                        value = "true" if _fuzz_bool() else "false"
-                        spec["last_value"] = value
-
-                # Map to aa flags
-                if key == "action":
-                    cmd += ["-A", value]  # type: ignore[arg-type]
-                elif key == "uri":
-                    cmd += ["-U", value]  # type: ignore[arg-type]
-                elif key == "entity":
-                    cmd += ["-e", value]  # type: ignore[arg-type]
-                elif key == "mime":
-                    cmd += ["-t", value]  # type: ignore[arg-type]
-                else:
-                    # Extra parameter
-                    if value_type == "bool":
-                        cmd += ["--pb", key, value.lower()]  # type: ignore[union-attr]
-                    elif value_type == "int":
-                        cmd += ["--pi", key, value]  # type: ignore[arg-type]
+                    # Decide on value and type for this iteration
+                    if mode == "fixed":
+                        value = fixed_value
+                        value_type = (
+                            _infer_type_from_value(value)  # type: ignore[arg-type]
+                            if key not in ("action", "uri", "entity", "mime")
+                            else "string"
+                        )
                     else:
-                        cmd += ["--ps", key, value]  # type: ignore[arg-type]
+                        # Fuzzed (mutational for strings)
+                        if mode == "string":
+                            value_type = "string"
+                        elif mode == "int":
+                            value_type = "int"
+                        elif mode == "bool":
+                            value_type = "bool"
+                        else:  # auto
+                            value_type = _choose_auto_type()
 
-            console._print_message(
-                "INFO",
-                f"[{iteration}/{count}] Executing aa start with fuzzed Want...",
-            )
-            if console.verbose:
-                console._print_message("DEBUG", " ".join(cmd))
+                        # Generate fuzzed value
+                        if value_type == "string":
+                            # Mutational: seed from last_value or fixed_value if available
+                            base_seed = spec.get("last_value") or spec.get("fixed_value")
+                            value = _fuzz_string(base=base_seed)
+                            spec["last_value"] = value
+                        elif value_type == "int":
+                            value = str(_fuzz_int())
+                            spec["last_value"] = value
+                        else:  # bool
+                            value = "true" if _fuzz_bool() else "false"
+                            spec["last_value"] = value
 
-            stdout, stderr, ret = console._get_hdc_shell_output(cmd)
+                    # Map to aa flags
+                    if key == "action":
+                        cmd += ["-A", value]  # type: ignore[arg-type]
+                    elif key == "uri":
+                        cmd += ["-U", value]  # type: ignore[arg-type]
+                    elif key == "entity":
+                        cmd += ["-e", value]  # type: ignore[arg-type]
+                    elif key == "mime":
+                        cmd += ["-t", value]  # type: ignore[arg-type]
+                    else:
+                        # Extra parameter
+                        if value_type == "bool":
+                            cmd += ["--pb", key, str(value).lower()]  # type: ignore[union-attr]
+                        elif value_type == "int":
+                            cmd += ["--pi", key, str(value)]  # type: ignore[arg-type]
+                        else:
+                            cmd += ["--ps", key, str(value)]  # type: ignore[arg-type]
 
-            if ret != 0:
                 console._print_message(
-                    "ERROR",
-                    f"[{iteration}/{count}] aa start failed (ret={ret}).",
+                    "INFO",
+                    f"[{iteration}/{count}] Executing aa start with fuzzed Want.",
                 )
-                if stdout:
-                    print("\n--- stdout ---")
-                    print(stdout.rstrip("\n"))
-                if stderr:
-                    print("\n--- stderr ---")
-                    print(stderr.rstrip("\n"))
-                print("\n-----------------\n")
-            else:
-                if console.verbose and stdout:
-                    console._print_message(
-                        "DEBUG",
-                        f"[{iteration}/{count}] aa start succeeded with output:",
-                    )
-                    print(stdout.rstrip("\n"))
+                if console.verbose:
+                    console._print_message("DEBUG", " ".join(cmd))
 
-            # Delay between iterations (if requested)
-            if iteration < count and delay_ms > 0:
-                time.sleep(delay_ms / 1000.0)
+                stdout, stderr, ret = console._get_hdc_shell_output(cmd)
+
+                # Write fuzzer command log entry
+                if log_file is not None:
+                    now = time.time()
+                    elapsed = now - start_time
+                    ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
+                    hdc_cmd_str = f"hdc -t {console.hdc_device_id} shell " + " ".join(cmd)
+                    log_file.write(
+                        f"{ts} [+{elapsed:9.3f}s] iter={iteration}/{count} "
+                        f"ret={ret} cmd={hdc_cmd_str}\n"
+                    )
+                    log_file.flush()
+
+                if ret != 0:
+                    console._print_message(
+                        "ERROR",
+                        f"[{iteration}/{count}] aa start failed (ret={ret}).",
+                    )
+                    if stdout:
+                        print("\n--- stdout ---")
+                        print(stdout.rstrip("\n"))
+                    if stderr:
+                        print("\n--- stderr ---")
+                        print(stderr.rstrip("\n"))
+                    print("\n-----------------\n")
+                else:
+                    if console.verbose and stdout:
+                        console._print_message(
+                            "DEBUG",
+                            f"[{iteration}/{count}] aa start succeeded with output:",
+                        )
+                        print(stdout.rstrip("\n"))
+
+                # Delay between iterations (if requested)
+                if iteration < count and delay_ms > 0:
+                    time.sleep(delay_ms / 1000.0)
+        finally:
+            if log_file is not None:
+                log_file.close()
 
 
 def register(registry_func):

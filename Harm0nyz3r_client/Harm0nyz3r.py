@@ -30,7 +30,7 @@ from harmonyos_parser import parse_app_dump_string
 
 from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, HDC_COMMAND, HARMONYZER_ASCII
 from commands import register_command, get_command, list_commands
-from commands import apps_list, app_info, app_surface, apps_visible_abilities, app_udmf, apps_udmf, app_ability, app_ability_want, app_ability_fuzz,app_ability_fuzz_dict, run_script,shell_exec
+from commands import apps_list, app_info, app_surface, apps_visible_abilities, app_udmf, apps_udmf, app_ability, app_ability_want, app_ability_fuzz,app_ability_fuzz_dict, run_script,net_send, shell_exec
 from commands.base import CommandSource
 
 class HarmonyOSClientConsole:
@@ -82,6 +82,7 @@ class HarmonyOSClientConsole:
         app_ability_fuzz_dict.register(register_command)
         run_script.register(register_command)
         shell_exec.register(register_command)
+        net_send.register(register_command)
         
     # ------------------------------------------------------------------
     # Device logging lifecycle for commands (stubs for now)
