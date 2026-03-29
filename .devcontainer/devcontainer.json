@@ -1,0 +1,35 @@
+{
+  "name": "Harm0niz3r Dev Environment",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylance",
+        "ms-python.debugpy",
+        "ms-vscode.makefile-tools",
+        "eamodio.gitlens",
+        "GitHub.copilot"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "editor.rulers": [100],
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  // Post-create: install all Python deps
+  "postCreateCommand": "pip install -r requirements.txt",
+  // Forward ADB/HDC common ports
+  "forwardPorts": [5037, 51337],
+  "remoteUser": "vscode",
+  // Mount the host Docker socket so ADB/USB device access can be extended via host
+  "runArgs": [
+    "--privileged",
+    "--network=host"
+  ]
+}

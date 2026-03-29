@@ -1,0 +1,10 @@
+# ── Core (Harm0nyz3r_client) ─────────────────────────────────────────────────
+# The unified Python server uses stdlib only for HarmonyOS and Android.
+# No third-party deps required when running --platform harmonyos or --platform android.
+
+# ── iOS support (Phase 3) ─────────────────────────────────────────────────────
+# Full-featured iOS communication library (iproxy / tunnel backend)
+pymobiledevice3>=4.14.0
+
+# ── Dev / shared utilities ───────────────────────────────────────────────────
+rich>=13.0.0          # Nicer console output (optional)
