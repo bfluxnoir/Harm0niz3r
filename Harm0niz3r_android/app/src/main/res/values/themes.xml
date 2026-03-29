@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <!-- Status bar -->
+        <item name="android:statusBarColor">#1A1A2E</item>
+        <!-- Window background matches the dark UI -->
+        <item name="android:windowBackground">#1A1A2E</item>
+        <!-- AppCompat required attributes -->
+        <item name="colorPrimary">#E94560</item>
+        <item name="colorPrimaryDark">#1A1A2E</item>
+        <item name="colorAccent">#E94560</item>
+    </style>
+</resources>
