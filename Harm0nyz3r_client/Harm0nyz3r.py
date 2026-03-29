@@ -404,22 +404,27 @@ class HarmonyOSClientConsole:
                 return False 
 
             handshake_response = response_data.decode('utf-8').strip()
-            self._print_message("DEBUG", f"Received handshake response: '{handshake_response}' from HarmonyOS server.")
+            self._print_message("DEBUG", f"Received handshake response: '{handshake_response}' from agent.")
 
-            if handshake_response == "POLO":
-                self.connected = True 
-                self._print_message("SUCCESS", "MARCO-POLO Handshake SUCCESSFUL! Connection fully established.")
-                self.socket.settimeout(None) # Remove timeout for continuous listening
-                
+            if handshake_response.startswith("POLO"):
+                self.connected = True
+                if handshake_response == "POLO":
+                    self._print_message("SUCCESS", "MARCO-POLO Handshake SUCCESSFUL! Connection fully established. (HarmonyOS agent)")
+                else:
+                    # e.g. "POLO:android:2.0"
+                    agent_info = handshake_response[len("POLO:"):] if ":" in handshake_response else handshake_response
+                    self._print_message("SUCCESS", f"MARCO-POLO Handshake SUCCESSFUL! Connection fully established. (Agent: {agent_info})")
+                self.socket.settimeout(None)  # Remove timeout for continuous listening
+
                 self._receive_thread_running = True
                 self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
                 self.receive_thread.start()
-                return True 
+                return True
             else:
                 self._print_message("ERROR", f"Handshake FAILED: Unexpected response '{handshake_response}'. Expected 'POLO'.")
                 self._print_message("INFO", "Connection will NOT be established for further commands.")
                 self._cleanup_socket()
-                return False 
+                return False
 
         except socket.timeout:
             self._print_message("ERROR", f"Connection or handshake timed out after 5 seconds to {self.host}:{self.port}.")
