@@ -46,6 +46,8 @@ class TcpServer(
                     if (running) Log.e(TAG, "Accept error: ${e.message}")
                     break
                 }
+                // Keep the connection alive when idle so the OS detects broken tunnels
+                try { client.keepAlive = true } catch (_: Exception) {}
                 onStatusChange("Client connected: ${client.inetAddress.hostAddress}")
                 Thread({ handleClient(client) }, "Harm0nizer-Client").start()
             }
@@ -115,7 +117,11 @@ class TcpServer(
         val sb = StringBuilder()
         try {
             while (true) {
-                val line = reader.readLine() ?: return null   // EOF
+                val line = reader.readLine()
+                if (line == null) {
+                    Log.d(TAG, "readMessage: EOF — remote end closed the stream")
+                    return null
+                }
                 sb.append(line).append('\n')
                 // The Python host sends "payload \n\n" — after stripping the trailing
                 // newline each readLine() call adds, we detect the empty-line sentinel.
@@ -125,6 +131,7 @@ class TcpServer(
                 }
             }
         } catch (e: Exception) {
+            Log.w(TAG, "readMessage: exception — ${e.javaClass.simpleName}: ${e.message}")
             return null
         }
     }

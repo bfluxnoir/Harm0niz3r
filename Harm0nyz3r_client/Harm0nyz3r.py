@@ -414,7 +414,15 @@ class HarmonyOSClientConsole:
                     # e.g. "POLO:android:2.0"
                     agent_info = handshake_response[len("POLO:"):] if ":" in handshake_response else handshake_response
                     self._print_message("SUCCESS", f"MARCO-POLO Handshake SUCCESSFUL! Connection fully established. (Agent: {agent_info})")
-                self.socket.settimeout(None)  # Remove timeout for continuous listening
+
+                # Switch to a generous receive timeout instead of blocking-forever (None).
+                # On Windows, switching to None after a timed socket can cause an immediate
+                # empty read in the receive thread.  The receive loop handles socket.timeout
+                # with 'pass', so a 60-second poll is transparent to the user.
+                self.socket.settimeout(60)
+
+                # Enable TCP keep-alive so the OS probes the connection when idle
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
                 self._receive_thread_running = True
                 self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
