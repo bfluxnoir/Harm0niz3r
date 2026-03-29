@@ -3,9 +3,9 @@
     <string name="app_name">Harm0niz3r</string>
     <string name="subtitle">Android Security Agent</string>
     <string name="status_stopped">Agent stopped</string>
-    <string name="status_running">Agent running on port 51337</string>
-    <string name="btn_start">Start Agent</string>
-    <string name="btn_stop">Stop Agent</string>
+    <string name="status_running">Agent running on port %d</string>
+    <string name="start_service">Start Agent</string>
+    <string name="stop_service">Stop Agent</string>
     <string name="port_hint">Connect via: adb forward tcp:51337 tcp:51337</string>
     <string name="notification_channel_name">Harm0niz3r Agent</string>
     <string name="notification_title">Harm0niz3r Agent Running</string>

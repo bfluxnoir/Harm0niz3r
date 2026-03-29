@@ -32,7 +32,7 @@
         android:layout_marginBottom="40dp" />
 
     <TextView
-        android:id="@+id/tvStatus"
+        android:id="@+id/statusText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/status_stopped"
@@ -41,7 +41,7 @@
         android:layout_marginBottom="32dp" />
 
     <Button
-        android:id="@+id/btnToggle"
+        android:id="@+id/toggleButton"
         android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="@string/btn_start"

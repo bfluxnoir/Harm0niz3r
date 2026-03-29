@@ -14,9 +14,9 @@ private const val TAG = "CommandHandler"
 
 /**
  * Processes commands received from the Python server and writes responses
- * back through [writer].
+ * back through writer.
  *
- * Message format from server:  "COMMAND_REQUEST:<cmd> [args...]"
+ * Message format from server:  "COMMAND_REQUEST:<cmd> args..."
  * Response format to server:   "<TYPE>:<payload> \n\n"  (framing done by TcpServer.sendMessage)
  *
  * Supported commands
@@ -27,7 +27,7 @@ private const val TAG = "CommandHandler"
  * apps_visible_abilities          → HDC_OUTPUT_EXPOSED_ABILITIES:<json>
  * app_ability <pkg> <activity>    → (starts Activity, no response body)
  * shell_exec <cmd>                → EXEC_RESULT:<output>
- * app_provider <authority> [projection] → UDMF_QUERY_RESULT:<json>
+ * app_provider <authority> projection → UDMF_QUERY_RESULT:<json>
  */
 class CommandHandler(private val context: Context) {
 
