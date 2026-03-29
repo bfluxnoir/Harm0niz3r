@@ -44,7 +44,7 @@
         android:id="@+id/toggleButton"
         android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="@string/btn_start"
+        android:text="@string/start_service"
         android:backgroundTint="#E94560"
         android:textColor="#FFFFFF"
         android:textStyle="bold" />
