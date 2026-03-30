@@ -28,7 +28,7 @@ import argparse
 # --- Import the new parser module ---
 from harmonyos_parser import parse_app_dump_string
 
-from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII
+from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art
 from platforms import get_platform, list_platforms
 from commands import register_command, get_command, list_commands
 # HarmonyOS command modules (loaded always; registered conditionally below)
@@ -986,7 +986,7 @@ class HarmonyOSClientConsole:
 
     def start_console(self):
         """Starts the interactive console loop."""
-        print(HARMONYZER_ASCII)  # Print ASCII art at the very beginning
+        print(get_ascii_art(self.platform.name))  # Platform-aware banner
         self._get_hdc_device_info()
         self._update_prompt()
 
