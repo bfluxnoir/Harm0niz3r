@@ -798,7 +798,10 @@ class HarmonyOSClientConsole:
 
 
     def _print_help(self):
-        """Prints available commands based on connection status."""
+        """Prints available commands, tailored to the active platform."""
+        is_android   = self.platform.name == "android"
+        is_harmonyos = self.platform.name == "harmonyos"
+
         print(f"\n--- Harm0nyz3r Client Console [{self.platform.name.upper()}] ---")
         print(f"Server: {self.host}:{self.port}")
         print(
@@ -815,36 +818,92 @@ class HarmonyOSClientConsole:
         )
         print(f"Verbose Mode: {'ON' if self.verbose else 'OFF'}")
 
+        # ------------------------------------------------------------------
+        # Platform-specific quick-start hint
+        # ------------------------------------------------------------------
+        if not self.connected:
+            print("\n[SETUP]")
+            if is_android:
+                print("  1. Install & launch the Harm0niz3r app on the Android device.")
+                print("  2. Tap 'Start Agent' — it listens on 127.0.0.1:51337.")
+                print(f"  3. Forward the port:  adb forward tcp:{self.port} tcp:{self.port}")
+                print("  4. Type 'connect' to establish the session.")
+            elif is_harmonyos:
+                print("  1. Install the Harm0niz3r HAP on the HarmonyOS device.")
+                print(f"  2. Forward the port:  hdc fport tcp:{self.port} tcp:{self.port}")
+                print("  3. Launch the app on the device, then type 'connect'.")
+            else:
+                print(f"  Set up port forwarding and type 'connect'.")
+
+        # ------------------------------------------------------------------
+        # Core commands
+        # ------------------------------------------------------------------
         print("\nCore Console Commands:")
         print("    help                    - Show this help.")
-        print("    exit                    - Quit the console.")
+        print("    exit / quit             - Quit the console.")
+        bridge = self.platform.bridge_command
         print(
-            "    connect                 - Attempt to connect to the server "
-            "(includes MARCO-POLO handshake) and check hdc."
+            f"    connect                 - Connect to the on-device agent via TCP "
+            f"(MARCO-POLO handshake, uses {bridge})."
         )
         if self.connected:
-            print("    disconnect              - Disconnect from the server.")
+            print("    disconnect              - Disconnect from the agent.")
         print(
-            "    verbose [on|off]        - Turn verbose output ON or OFF. "
+            "    verbose [on|off]        - Toggle verbose output. "
             f"(Currently: {'ON' if self.verbose else 'OFF'})"
         )
 
-        print(f"\nRegistered Commands [{self.platform.name}]:")
-        # Dynamically list all registered commands from the registry
+        # ------------------------------------------------------------------
+        # Registered platform commands
+        # ------------------------------------------------------------------
+        if is_android:
+            print("\nAndroid Commands  (requires adb + agent running on device):")
+            print("  ── App enumeration ──────────────────────────────────────────")
+        elif is_harmonyos:
+            print("\nHarmonyOS Commands  (requires hdc + agent running on device):")
+            print("  ── App enumeration ──────────────────────────────────────────")
+        else:
+            print(f"\nRegistered Commands [{self.platform.name}]:")
+
         for cmd in list_commands():
             help_lines = cmd.help().splitlines()
             if not help_lines:
                 continue
-            # First line with one level of indentation
             print(f"    {help_lines[0]}")
-            # Additional lines further indented
             for line in help_lines[1:]:
                 print(f"        {line}")
 
+        # ------------------------------------------------------------------
+        # Platform-specific usage examples
+        # ------------------------------------------------------------------
+        if is_android:
+            print("\nQuick examples (Android):")
+            print("    apps_list -3")
+            print("    app_info com.example.target")
+            print("    app_surface com.example.target")
+            print("    apps_visible_abilities")
+            print("    app_ability com.example.target .MainActivity")
+            print("    app_ability_want com.example.target .LoginActivity username=admin isAdmin=true")
+            print("    app_deeplink myapp://admin/panel")
+            print("    app_broadcast com.example.REFRESH -n com.example.target/.UpdateReceiver")
+            print("    app_permissions com.example.target --dangerous")
+            print("    app_provider com.example.target content://com.example.target.provider/users")
+            print("    shell_exec")
+        elif is_harmonyos:
+            print("\nQuick examples (HarmonyOS):")
+            print("    apps_list -a")
+            print("    app_info com.example.bundle")
+            print("    app_surface com.example.bundle")
+            print("    apps_visible_abilities")
+            print("    app_ability com.example.bundle ExposedAbility")
+            print("    app_ability_want com.example.bundle ExposedAbility myKey myValue")
+            print("    app_udmf com.example.bundle")
+
         if not self.hdc_device_id:
             print(
-                f"\n[INFO] Device-dependent commands require a connected "
-                f"{self.platform.name} device via '{self.platform.bridge_command}'."
+                f"\n[HINT] No {self.platform.name} device detected via "
+                f"'{self.platform.bridge_command}'. Device-level commands will not work until "
+                "one is connected."
             )
 
         print("------------------------------------\n")
