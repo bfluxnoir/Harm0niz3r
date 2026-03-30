@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # config.py
 
 VERSION = "v1.2.1"
@@ -108,6 +109,107 @@ _ANDROID_BANNER = (
     f"    App Security Companion Script\n\n"
     f"    {VERSION}\n"
 )
+
+
+# ---------------------------------------------------------------------------
+# Console UI theme  –  semantic colour roles per platform
+# ---------------------------------------------------------------------------
+#
+# Each role is a raw ANSI open-code string (no reset).  Callers must append
+# _RST themselves.  Use get_theme() to obtain the correct set for a platform.
+#
+# Roles:
+#   HEADER        – bold title bar
+#   SECTION       – section heading
+#   SEPARATOR     – ─ / ━ divider lines
+#   FOOTER        – closing rule
+#   LABEL         – field name in status block  ("Server:", "Device:")
+#   VALUE         – field value  (host, device name)
+#   CONNECTED     – ✅ connected state indicator
+#   DISCONNECTED  – ❌ disconnected state indicator
+#   VERBOSE_ON    – verbose enabled indicator
+#   VERBOSE_OFF   – verbose disabled indicator
+#   SETUP_TAG     – [ SETUP ] attention marker
+#   STEP_NUM      – numbered step prefix
+#   STEP_TEXT     – step body text
+#   HINT_TAG      – ⚠ soft warning / tip
+#   CMD_NAME      – command keyword in listings
+#   CMD_DESC      – description text after the dash
+#   EX_HDR        – "Quick examples" heading
+#   EX_CMD        – command part of an example line
+#   EX_ARG        – argument(s) part of an example line
+#   PROMPT_CONN   – prompt colour when connected
+#   PROMPT_DISC   – prompt colour when disconnected
+
+try:
+    from types import SimpleNamespace as _NS
+except ImportError:
+    class _NS:                         # type: ignore[no-redef]
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+def get_theme(platform_name: str) -> "_NS":
+    """Return a namespace of ANSI open-codes for every console UI role."""
+
+    # ── shared universals ──────────────────────────────────────────────
+    _CONN  = f"{_BOLD}\033[92m"        # bold bright-green (connected – always)
+    _DISC  = f"{_BOLD}\033[91m"        # bold bright-red   (disconnected – always)
+    _V_OFF = f"{_DIM}{_GREY}"
+    _HINT  = f"{_ITALIC}{_AMB}"
+    _LBL   = f"{_DIM}{_WHITE}"
+    _VAL   = _WHITE
+    _VOFF  = f"{_DIM}{_GREY}"
+    _FOT   = f"{_DIM}{_GREY}"
+
+    if platform_name == "android":
+        return _NS(
+            RST          = _RST,
+            HEADER       = f"{_BOLD}{_G2}",
+            SECTION      = f"{_BOLD}{_G1}",
+            SEPARATOR    = f"{_DIM}{_G1}",
+            FOOTER       = _FOT,
+            LABEL        = _LBL,
+            VALUE        = _VAL,
+            CONNECTED    = _CONN,
+            DISCONNECTED = _DISC,
+            VERBOSE_ON   = f"{_BOLD}{_G2}",
+            VERBOSE_OFF  = _VOFF,
+            SETUP_TAG    = f"{_BOLD}{_G2}",
+            STEP_NUM     = f"{_BOLD}{_G2}",
+            STEP_TEXT    = _VAL,
+            HINT_TAG     = _HINT,
+            CMD_NAME     = f"{_BOLD}{_G2}",
+            CMD_DESC     = f"{_DIM}{_WHITE}",
+            EX_HDR       = f"{_BOLD}{_G2}",
+            EX_CMD       = _G2,
+            EX_ARG       = _G1,
+            PROMPT_CONN  = _G2,
+            PROMPT_DISC  = _GREY,
+        )
+    else:   # harmonyos / ios / fallback  →  red / amber palette
+        return _NS(
+            RST          = _RST,
+            HEADER       = f"{_BOLD}{_R2}",
+            SECTION      = f"{_BOLD}{_AMB}",
+            SEPARATOR    = f"{_DIM}{_R1}",
+            FOOTER       = _FOT,
+            LABEL        = _LBL,
+            VALUE        = _VAL,
+            CONNECTED    = _CONN,
+            DISCONNECTED = _DISC,
+            VERBOSE_ON   = f"{_BOLD}{_R2}",
+            VERBOSE_OFF  = _VOFF,
+            SETUP_TAG    = f"{_BOLD}{_AMB}",
+            STEP_NUM     = f"{_BOLD}{_AMB}",
+            STEP_TEXT    = _VAL,
+            HINT_TAG     = _HINT,
+            CMD_NAME     = f"{_BOLD}{_R2}",
+            CMD_DESC     = f"{_DIM}{_WHITE}",
+            EX_HDR       = f"{_BOLD}{_AMB}",
+            EX_CMD       = _R2,
+            EX_ARG       = _AMB,
+            PROMPT_CONN  = _R2,
+            PROMPT_DISC  = _GREY,
+        )
 
 
 def get_ascii_art(platform_name: str) -> str:

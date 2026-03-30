@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
  ==========================================================
  HARM0NYZ3R - HarmonyOS Security Companion
@@ -28,7 +29,7 @@ import argparse
 # --- Import the new parser module ---
 from harmonyos_parser import parse_app_dump_string
 
-from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art, get_level_label, _RST
+from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art, get_level_label, get_theme, _RST, _DIM, _BOLD, _GREY
 from platforms import get_platform, list_platforms
 from commands import register_command, get_command, list_commands
 # HarmonyOS command modules (loaded always; registered conditionally below)
@@ -767,8 +768,13 @@ class HarmonyOSClientConsole:
                 print(f"\n--- HDC Command Error ({' '.join(hdc_shell_cmd_args)}) ---\n{error_msg}\n-----------------------------------\n")
 
     def _update_prompt(self):
-        """Updates the command prompt text based on current status."""
-        self._current_prompt_text = f"[{self.user_name_on_device}@{self.hdc_device_name}] Enter command: "
+        """Updates the command prompt with platform-themed colours."""
+        th  = get_theme(self.platform.name)
+        pc  = th.PROMPT_CONN if self.connected else th.PROMPT_DISC
+        self._current_prompt_text = (
+            f"{pc}[{self.user_name_on_device}@{self.hdc_device_name}]{_RST}"
+            f" {_DIM}›{_RST} "
+        )
 
 
                 
@@ -804,115 +810,151 @@ class HarmonyOSClientConsole:
 
 
     def _print_help(self):
-        """Prints available commands, tailored to the active platform."""
+        """Prints available commands with full platform-themed colouring."""
+        th  = get_theme(self.platform.name)
+        R   = _RST
         is_android   = self.platform.name == "android"
         is_harmonyos = self.platform.name == "harmonyos"
+        W = 54   # column width for rule lines
 
-        print(f"\n--- Harm0nyz3r Client Console [{self.platform.name.upper()}] ---")
-        print(f"Server: {self.host}:{self.port}")
-        print(
-            "Connection Status: "
-            + (
-                "✅ ESTABLISHED (MARCO-POLO Handshake OK)"
-                if self.connected
-                else "❌ DISCONNECTED or HANDSHAKE FAILED"
-            )
-        )
-        print(
-            f"Device [{self.platform.bridge_command}]: {self.hdc_device_name} "
-            f"(ID: {self.hdc_device_id if self.hdc_device_id else 'None'})"
-        )
-        print(f"Verbose Mode: {'ON' if self.verbose else 'OFF'}")
+        # ── Header ────────────────────────────────────────────────────────
+        platform_label = self.platform.name.upper()
+        print(f"\n{th.HEADER}{'━' * W}{R}")
+        print(f"{th.HEADER}  Harm0nyz3r  ›  {platform_label}{R}")
+        print(f"{th.HEADER}{'━' * W}{R}")
 
-        # ------------------------------------------------------------------
-        # Platform-specific quick-start hint
-        # ------------------------------------------------------------------
-        if not self.connected:
-            print("\n[SETUP]")
-            if is_android:
-                print("  1. Install & launch the Harm0niz3r app on the Android device.")
-                print("  2. Tap 'Start Agent' — it listens on 127.0.0.1:51337.")
-                print(f"  3. Forward the port:  adb forward tcp:{self.port} tcp:{self.port}")
-                print("  4. Type 'connect' to establish the session.")
-            elif is_harmonyos:
-                print("  1. Install the Harm0niz3r HAP on the HarmonyOS device.")
-                print(f"  2. Forward the port:  hdc fport tcp:{self.port} tcp:{self.port}")
-                print("  3. Launch the app on the device, then type 'connect'.")
-            else:
-                print(f"  Set up port forwarding and type 'connect'.")
-
-        # ------------------------------------------------------------------
-        # Core commands
-        # ------------------------------------------------------------------
-        print("\nCore Console Commands:")
-        print("    help                    - Show this help.")
-        print("    exit / quit             - Quit the console.")
-        bridge = self.platform.bridge_command
-        print(
-            f"    connect                 - Connect to the on-device agent via TCP "
-            f"(MARCO-POLO handshake, uses {bridge})."
-        )
+        # ── Status block ──────────────────────────────────────────────────
         if self.connected:
-            print("    disconnect              - Disconnect from the agent.")
-        print(
-            "    verbose [on|off]        - Toggle verbose output. "
-            f"(Currently: {'ON' if self.verbose else 'OFF'})"
-        )
-
-        # ------------------------------------------------------------------
-        # Registered platform commands
-        # ------------------------------------------------------------------
-        if is_android:
-            print("\nAndroid Commands  (requires adb + agent running on device):")
-            print("  ── App enumeration ──────────────────────────────────────────")
-        elif is_harmonyos:
-            print("\nHarmonyOS Commands  (requires hdc + agent running on device):")
-            print("  ── App enumeration ──────────────────────────────────────────")
+            conn_str = f"{th.CONNECTED}✅  CONNECTED   (MARCO-POLO handshake OK){R}"
         else:
-            print(f"\nRegistered Commands [{self.platform.name}]:")
+            conn_str = f"{th.DISCONNECTED}❌  DISCONNECTED  or  HANDSHAKE FAILED{R}"
+
+        verbose_str = (
+            f"{th.VERBOSE_ON}ON{R}"  if self.verbose
+            else f"{th.VERBOSE_OFF}OFF{R}"
+        )
+        dev_id = self.hdc_device_id if self.hdc_device_id else "none"
+
+        print(f"  {th.LABEL}server   {R}  {th.VALUE}{self.host}:{self.port}{R}")
+        print(f"  {th.LABEL}status   {R}  {conn_str}")
+        print(f"  {th.LABEL}device   {R}  {th.VALUE}{self.hdc_device_name}{R}  "
+              f"{th.LABEL}id:{R} {th.VALUE}{dev_id}{R}")
+        print(f"  {th.LABEL}verbose  {R}  {verbose_str}")
+        print(f"{th.SEPARATOR}{'─' * W}{R}")
+
+        # ── Setup (shown only when disconnected) ──────────────────────────
+        if not self.connected:
+            print(f"\n  {th.SETUP_TAG}[ SETUP ]{R}")
+            if is_android:
+                steps = [
+                    "Install & launch the Harm0niz3r app on the Android device.",
+                    f"Tap 'Start Agent' — listens on 127.0.0.1:{self.port}.",
+                    f"Forward the port:  {th.EX_CMD}adb forward tcp:{self.port} tcp:{self.port}{R}",
+                    f"Type  {th.EX_CMD}connect{R}  to establish the session.",
+                ]
+            elif is_harmonyos:
+                steps = [
+                    "Install the Harm0niz3r HAP on the HarmonyOS device.",
+                    f"Forward the port:  {th.EX_CMD}hdc fport tcp:{self.port} tcp:{self.port}{R}",
+                    f"Launch the app, then type  {th.EX_CMD}connect{R}.",
+                ]
+            else:
+                steps = [f"Set up port forwarding and type  {th.EX_CMD}connect{R}."]
+
+            for i, step in enumerate(steps, 1):
+                print(f"  {th.STEP_NUM}{i}.{R}  {th.STEP_TEXT}{step}{R}")
+
+        # ── Core commands ─────────────────────────────────────────────────
+        bridge = self.platform.bridge_command
+        print(f"\n{th.SECTION}  Core Commands{R}")
+        print(f"{th.SEPARATOR}  {'─' * (W - 2)}{R}")
+
+        core_cmds = [
+            ("help",               "Show this help screen."),
+            ("exit / quit",        "Quit Harm0nyz3r."),
+            ("connect",            f"TCP session + MARCO-POLO handshake  (bridge: {bridge})."),
+            ("disconnect",         "Close the current agent session."),
+            ("verbose [on|off]",   f"Toggle verbose output.  Now: {'ON' if self.verbose else 'OFF'}"),
+        ]
+        for name, desc in core_cmds:
+            print(f"  {th.CMD_NAME}{name:<22}{R}  {th.CMD_DESC}{desc}{R}")
+
+        # ── Platform commands ─────────────────────────────────────────────
+        if is_android:
+            section_title = "Android Commands  (adb + agent on device)"
+        elif is_harmonyos:
+            section_title = "HarmonyOS Commands  (hdc + agent on device)"
+        else:
+            section_title = f"Commands  [{self.platform.name}]"
+
+        print(f"\n{th.SECTION}  {section_title}{R}")
+        print(f"{th.SEPARATOR}  {'─' * (W - 2)}{R}")
 
         for cmd in list_commands():
             help_lines = cmd.help().splitlines()
             if not help_lines:
                 continue
-            print(f"    {help_lines[0]}")
+            # Split signature from description at ' – ' or ' - ' or '  '
+            first = help_lines[0]
+            sig, desc = first, ""
+            for sep in (" \u2013 ", " - ", "   "):
+                if sep in first:
+                    sig, desc = first.split(sep, 1)
+                    break
+            sig  = sig.strip()
+            desc = desc.strip()
+            print(f"  {th.CMD_NAME}{sig:<28}{R}  {th.CMD_DESC}{desc}{R}")
             for line in help_lines[1:]:
-                print(f"        {line}")
+                print(f"      {th.CMD_DESC}{line.strip()}{R}")
 
-        # ------------------------------------------------------------------
-        # Platform-specific usage examples
-        # ------------------------------------------------------------------
+        # ── Quick examples ────────────────────────────────────────────────
         if is_android:
-            print("\nQuick examples (Android):")
-            print("    apps_list -3")
-            print("    app_info com.example.target")
-            print("    app_surface com.example.target")
-            print("    apps_visible_abilities")
-            print("    app_ability com.example.target .MainActivity")
-            print("    app_ability_want com.example.target .LoginActivity username=admin isAdmin=true")
-            print("    app_deeplink myapp://admin/panel")
-            print("    app_broadcast com.example.REFRESH -n com.example.target/.UpdateReceiver")
-            print("    app_permissions com.example.target --dangerous")
-            print("    app_provider com.example.target content://com.example.target.provider/users")
-            print("    shell_exec")
+            examples = [
+                ("apps_list",        "-3"),
+                ("app_info",         "com.example.target"),
+                ("app_surface",      "com.example.target"),
+                ("apps_visible_abilities", ""),
+                ("app_ability",      "com.example.target .MainActivity"),
+                ("app_ability_want", "com.example.target .LoginActivity username=admin"),
+                ("app_deeplink",     "myapp://admin/panel"),
+                ("app_broadcast",    "com.example.REFRESH -n com.example.target/.Receiver"),
+                ("app_permissions",  "com.example.target --dangerous"),
+                ("app_provider",     "content://com.example.target.provider/users"),
+                ("shell_exec",       ""),
+            ]
+            print(f"\n{th.EX_HDR}  Quick examples  ›  Android{R}")
         elif is_harmonyos:
-            print("\nQuick examples (HarmonyOS):")
-            print("    apps_list -a")
-            print("    app_info com.example.bundle")
-            print("    app_surface com.example.bundle")
-            print("    apps_visible_abilities")
-            print("    app_ability com.example.bundle ExposedAbility")
-            print("    app_ability_want com.example.bundle ExposedAbility myKey myValue")
-            print("    app_udmf com.example.bundle")
+            examples = [
+                ("apps_list",        "-a"),
+                ("app_info",         "com.example.bundle"),
+                ("app_surface",      "com.example.bundle"),
+                ("apps_visible_abilities", ""),
+                ("app_ability",      "com.example.bundle ExposedAbility"),
+                ("app_ability_want", "com.example.bundle ExposedAbility myKey myValue"),
+                ("app_udmf",         "com.example.bundle"),
+            ]
+            print(f"\n{th.EX_HDR}  Quick examples  ›  HarmonyOS{R}")
+        else:
+            examples = []
 
+        if examples:
+            print(f"{th.SEPARATOR}  {'─' * (W - 2)}{R}")
+            for ex_cmd, ex_args in examples:
+                if ex_args:
+                    print(f"  {th.EX_CMD}{ex_cmd}{R}  {th.EX_ARG}{ex_args}{R}")
+                else:
+                    print(f"  {th.EX_CMD}{ex_cmd}{R}")
+
+        # ── No-device hint ────────────────────────────────────────────────
         if not self.hdc_device_id:
             print(
-                f"\n[HINT] No {self.platform.name} device detected via "
-                f"'{self.platform.bridge_command}'. Device-level commands will not work until "
-                "one is connected."
+                f"\n  {th.HINT_TAG}⚠  No {self.platform.name} device detected via "
+                f"'{self.platform.bridge_command}'.  "
+                f"Run '{self.platform.bridge_command} devices' to verify.{R}"
             )
 
-        print("------------------------------------\n")
+        # ── Footer ────────────────────────────────────────────────────────
+        print(f"{th.FOOTER}{'━' * W}{R}\n")
 
     def process_command_line(self, command_line: str, source: str = "cli") -> None:
         """
