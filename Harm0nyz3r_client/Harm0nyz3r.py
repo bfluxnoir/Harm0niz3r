@@ -930,6 +930,12 @@ class HarmonyOSClientConsole:
         print(HARMONYZER_ASCII)  # Print ASCII art at the very beginning
         self._get_hdc_device_info()
         self._update_prompt()
+
+        # Auto-connect on startup so the user doesn't have to type 'connect' manually.
+        # If the agent isn't running yet this fails silently; the user can retry with 'connect'.
+        self._print_message("INFO", f"Auto-connecting to agent at {self.host}:{self.port}...")
+        self.connect()
+
         self._print_help()
 
         while self.running:
