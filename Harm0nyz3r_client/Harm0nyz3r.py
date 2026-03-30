@@ -28,7 +28,7 @@ import argparse
 # --- Import the new parser module ---
 from harmonyos_parser import parse_app_dump_string
 
-from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art
+from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art, get_level_label, _RST
 from platforms import get_platform, list_platforms
 from commands import register_command, get_command, list_commands
 # HarmonyOS command modules (loaded always; registered conditionally below)
@@ -249,11 +249,17 @@ class HarmonyOSClientConsole:
 
 
     def _print_message(self, level, message):
-        """Helper to print messages conditionally based on verbose mode."""
-        if level in ["INFO", "ERROR", "SUCCESS", "FATAL_ERROR", "WARNING"]:
-            print(f"[{level}] {message}")
-        elif self.verbose:
-            print(f"[{level}] {message}")
+        """Print a coloured, platform-aware console message.
+
+        Visible levels (always shown): INFO, ERROR, SUCCESS, FATAL_ERROR, WARNING.
+        Debug levels (shown only in verbose mode): DEBUG and any unrecognised level.
+        """
+        visible = level in ("INFO", "ERROR", "SUCCESS", "FATAL_ERROR", "WARNING")
+        if not visible and not self.verbose:
+            return
+
+        label, mcol = get_level_label(self.platform.name, level)
+        print(f"{label} {mcol}{message}{_RST}")
 
     def _cleanup_socket(self):
         """Helper to safely close the socket."""
