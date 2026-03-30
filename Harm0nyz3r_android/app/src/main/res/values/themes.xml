@@ -6,8 +6,8 @@
         <!-- Window background matches the dark UI -->
         <item name="android:windowBackground">#1A1A2E</item>
         <!-- AppCompat required attributes -->
-        <item name="colorPrimary">#E94560</item>
+        <item name="colorPrimary">#4CAF50</item>
         <item name="colorPrimaryDark">#1A1A2E</item>
-        <item name="colorAccent">#E94560</item>
+        <item name="colorAccent">#4CAF50</item>
     </style>
 </resources>

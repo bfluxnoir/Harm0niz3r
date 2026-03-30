@@ -10,9 +10,9 @@
         android:fillColor="#1A1A2E"
         android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0" />
 
-    <!-- Stylised "H" letterform in red -->
+    <!-- Stylised "H" letterform in green -->
     <path
-        android:fillColor="#E94560"
+        android:fillColor="#4CAF50"
         android:pathData="M28,28 L28,80 L40,80 L40,60 L68,60 L68,80 L80,80 L80,28 L68,28 L68,48 L40,48 L40,28 Z" />
 
     <!-- Small "0" accent dot -->
