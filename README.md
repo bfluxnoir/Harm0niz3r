@@ -215,23 +215,62 @@ specific device bridge tool. Adding support for a new mobile platform requires o
 under `platforms/` — the core console, command registry and communication layer stay untouched.
 
 ```
-                  ┌──────────────────────────────────────────┐
-                  │           Python CLI Client               │
-                  │  ┌──────────────┐  ┌──────────────────┐  │
-                  │  │  Console /   │  │ Command Registry │  │
-                  │  │  Core Logic  │  │  (unchanged)     │  │
-                  │  └──────┬───────┘  └──────────────────┘  │
-                  │         │ self.platform                   │
-                  │  ┌──────▼───────────────────────────┐    │
-                  │  │     Platform Abstraction Layer    │    │
-                  │  │  harmonyos.py | android.py | ios  │    │
-                  │  └──────┬──────────────┬─────────────┘   │
-                  └─────────┼──────────────┼─────────────────┘
-                            │              │
-                  hdc fport │              │ adb forward
-                            ▼              ▼
-                      [HarmonyOS]      [Android]
-                       ArkTS Agent    Kotlin Agent
+  ┌──────────────────────────────────────────────────────────┐
+  │              python3 Harm0nyz3r.py                        │
+  │        --platform  harmonyos │ android │ ios              │
+  └────────────────────────────┬─────────────────────────────┘
+                               │
+  ┌────────────────────────────▼─────────────────────────────┐
+  │                  HarmonyOSClientConsole                    │
+  │                                                           │
+  │  ┌──────────────────┐   ┌─────────────────────────────┐  │
+  │  │    config.py     │   │       Command Registry       │  │
+  │  │                  │   │  ┌───────────┬─────────────┐ │  │
+  │  │  ASCII banners   │   │  │  Shared   │ Per-platform│ │  │
+  │  │  get_theme()     │   │  │  net_send │ harmonyos/  │ │  │
+  │  │  get_level_      │   │  │  run_scrpt│ android/    │ │  │
+  │  │    label()       │   │  │           │ ios/ (Ph.3) │ │  │
+  │  └──────────────────┘   │  └───────────┴─────────────┘ │  │
+  │                         └─────────────────────────────┘  │
+  │                                                           │
+  │  ┌────────────────────────────────────────────────────┐  │
+  │  │          Platform Abstraction Layer  (PAL)          │  │
+  │  │                  BasePlatform  (ABC)                │  │
+  │  │                                                     │  │
+  │  │  ┌─────────────┐  ┌────────────┐  ┌─────────────┐  │  │
+  │  │  │  HarmonyOS  │  │  Android   │  │    iOS      │  │  │
+  │  │  │  Platform   │  │  Platform  │  │  Platform   │  │  │
+  │  │  │  hdc        │  │  adb       │  │  iproxy     │  │  │
+  │  │  └─────────────┘  └────────────┘  └─────────────┘  │  │
+  │  └────────────────────────────────────────────────────┘  │
+  │                                                           │
+  │  ┌────────────────────────────────────────────────────┐  │
+  │  │   parsers/                                          │  │
+  │  │   harmonyos_parser.py  android_parser.py  ios_stub  │  │
+  │  └────────────────────────────────────────────────────┘  │
+  │                                                           │
+  │  ┌────────────────────────────────────────────────────┐  │
+  │  │   TCP Socket  ·  127.0.0.1:51337                    │  │
+  │  │   MARCO ──► POLO  (platform-versioned handshake)    │  │
+  │  └───────────────────────────┬────────────────────────┘  │
+  └──────────────────────────────┼────────────────────────────┘
+                                 │
+             ┌───────────────────┤ hdc fport / adb forward / iproxy
+             │  bridge commands  │ sets up TCP tunnel → 127.0.0.1:51337
+             │  (shell, pm, am)  │
+             ▼                   ▼
+  ┌──────────────────────────────────────────────────────────┐
+  │                    On-Device  (target)                    │
+  │                                                          │
+  │  ┌──────────────────┐    ┌───────────────────────────┐  │
+  │  │  HarmonyOS Agent │    │      Android Agent        │  │
+  │  │  ArkTS           │    │      Kotlin               │  │
+  │  │  hdc fport       │    │      adb forward          │  │
+  │  │  reply: POLO     │    │      reply: POLO:android   │  │
+  │  └──────────────────┘    │            :2.0           │  │
+  │                          └───────────────────────────┘  │
+  │                   iOS Agent (Swift)  —  Phase 3         │
+  └──────────────────────────────────────────────────────────┘
 ```
 
 ### Platform status
