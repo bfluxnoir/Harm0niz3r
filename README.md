@@ -31,7 +31,7 @@ An on-device agent must be installed on the target device before using most feat
 hdc app install harm0niz3r.hap
 ```
 
-**Android** — build the Kotlin agent with Android Studio (open `Harm0niz3r_android/`) or
+**Android** — build the Kotlin agent with Android Studio (open `Harm0nyz3r_android/`) or
 install a pre-built APK:
 
 ```bash
@@ -167,11 +167,11 @@ support for new mobile platforms without touching the core console logic or any 
 
 ## Android Agent Architecture
 
-The Android agent (`Harm0niz3r_android/`) is a standard Android application written in Kotlin
+The Android agent (`Harm0nyz3r_android/`) is a standard Android application written in Kotlin
 that mirrors the HarmonyOS ArkTS agent in functionality.
 
 ```
-Harm0niz3r_android/
+Harm0nyz3r_android/
 ├── app/
 │   ├── build.gradle
 │   └── src/main/
@@ -208,7 +208,7 @@ Harm0niz3r/
 │   ├── AppScope/
 │   └── entry/
 │
-├── Harm0niz3r_android/            # Android on-device agent (Kotlin)
+├── Harm0nyz3r_android/            # Android on-device agent (Kotlin)
 │   ├── app/
 │   │   ├── build.gradle
 │   │   └── src/main/
