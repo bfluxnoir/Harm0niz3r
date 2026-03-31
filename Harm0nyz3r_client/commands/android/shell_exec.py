@@ -1,20 +1,24 @@
+# -*- coding: utf-8 -*-
 # commands/android/shell_exec.py
-import time
+import subprocess
 from typing import List
 
 from commands.base import Command, CommandSource
 
-_PROMPT = "(adb shell) $> "
-_SANDBOX_PROMPT = "(run-as {pkg}) $> "
-
 
 class AndroidShellExecCommand(Command):
     """
-    Interactive shell over adb.
+    Interactive adb shell with full terminal passthrough.
 
     Two modes:
-      shell_exec           → plain 'adb shell' interactive session
-      shell_exec <package> → 'adb shell run-as <package>' (app sandbox, requires debuggable)
+      shell_exec           → 'adb -s DEVICE shell'
+                             Full interactive shell; 'su -' works on rooted devices.
+      shell_exec <package> → 'adb -s DEVICE shell run-as <package>'
+                             App-sandbox shell (requires debuggable build).
+
+    The subprocess inherits the terminal directly (no pipe capture), so stateful
+    commands (cd, export …) and interactive programs (su, vim, top …) all behave
+    exactly as they would in a native 'adb shell' session.  Type 'exit' to return.
     """
 
     @property
@@ -23,11 +27,10 @@ class AndroidShellExecCommand(Command):
 
     def help(self) -> str:
         return (
-            "shell_exec [package]\n"
-            "  Open an interactive shell via adb.\n"
-            "  Without <package>: plain adb shell.\n"
-            "  With <package>   : run-as <package> (app sandbox — requires debuggable build).\n"
-            "  Type 'exit' to quit."
+            "shell_exec [package]  – Open a direct interactive adb shell.\n"
+            "  No args  : plain adb shell  (type 'su -' for root on rooted devices).\n"
+            "  <package>: run-as <package> sandbox  (requires debuggable build).\n"
+            "  Type 'exit' to close the session and return to Harm0nyz3r."
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
@@ -40,49 +43,38 @@ class AndroidShellExecCommand(Command):
             return
 
         sandbox_pkg = args[0] if args else None
-        prompt = _SANDBOX_PROMPT.format(pkg=sandbox_pkg) if sandbox_pkg else _PROMPT
 
         if sandbox_pkg:
+            cmd = ["adb", "-s", console.hdc_device_id, "shell", "run-as", sandbox_pkg]
             console._print_message(
                 "INFO",
-                f"Opening sandbox shell for '{sandbox_pkg}' via run-as. "
-                "App must be debuggable."
+                f"Opening sandbox shell for '{sandbox_pkg}'  (run-as).  "
+                "App must be a debuggable build."
             )
         else:
-            console._print_message("INFO", "Opening adb shell. Type 'exit' to quit.")
+            cmd = ["adb", "-s", console.hdc_device_id, "shell"]
+            console._print_message(
+                "INFO",
+                "Opening interactive adb shell.  Type 'exit' to return to Harm0nyz3r."
+            )
 
-        while True:
-            if not console.hdc_device_id:
-                console._print_message("ERROR", "Device disconnected.")
-                break
-            try:
-                command_to_run = input(prompt).strip()
-                if command_to_run in ("exit", "quit"):
-                    print("Exiting shell.")
-                    break
-                if not command_to_run:
-                    continue
+        console._print_message("DEBUG", f"Launching: {' '.join(cmd)}")
 
-                if sandbox_pkg:
-                    shell_cmd = ["run-as", sandbox_pkg, "sh", "-c", command_to_run]
-                else:
-                    # Split into tokens so the shell interprets the command
-                    shell_cmd = ["sh", "-c", command_to_run]
+        try:
+            # No capture_output / no pipe redirection.
+            # stdin, stdout and stderr are inherited from the parent terminal so the
+            # shell is fully interactive: su, cd, vim, top … all work as expected.
+            subprocess.run(cmd, check=False)
+        except FileNotFoundError:
+            console._print_message("ERROR", "'adb' not found in PATH.")
+            return
+        except KeyboardInterrupt:
+            pass   # Ctrl-C was already handled by the shell itself
+        except Exception as e:
+            console._print_message("ERROR", f"Shell error: {e}")
+            return
 
-                stdout, stderr, ret = console._get_hdc_shell_output(shell_cmd)
-
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    print(f"[stderr] {stderr}")
-
-            except KeyboardInterrupt:
-                print("\nUse 'exit' to quit the shell.")
-            except EOFError:
-                break
-            except Exception as e:
-                print(f"Error: {e}")
-                break
+        console._print_message("INFO", "Shell session ended.")
 
 
 def register(registry_func):
