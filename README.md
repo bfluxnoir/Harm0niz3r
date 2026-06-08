@@ -151,6 +151,7 @@ When running with `--platform android` the following commands are available:
 | `app_provider <authority> [columns]` | Query a Content Provider by URI |
 | `shell_exec <cmd>` | Execute a shell command on the device |
 | `agent_exec <cmd> [args]` | Route a command to the on-device agent instead of direct `adb` |
+| `app_scan <package> [--json]` | Risk-scored static security report (debuggable, allowBackup, cleartext, exported components, dangerous permissions, deeplinks) |
 
 ## HarmonyOS Commands
 

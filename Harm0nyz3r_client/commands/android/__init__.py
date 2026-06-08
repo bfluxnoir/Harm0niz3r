@@ -14,6 +14,7 @@ from . import (
     app_provider,
     shell_exec,
     agent_exec,
+    app_scan,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "app_provider",
     "shell_exec",
     "agent_exec",
+    "app_scan",
 ]

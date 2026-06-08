@@ -119,6 +119,7 @@ class Harm0nyz3rConsole:
             android_commands.app_provider.register(register_command)
             android_commands.shell_exec.register(register_command)
             android_commands.agent_exec.register(register_command)
+            android_commands.app_scan.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available
