@@ -26,9 +26,6 @@ import os
 import queue
 import argparse
 
-# --- Import the new parser module ---
-from harmonyos_parser import parse_app_dump_string
-
 from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art, get_level_label, get_theme, _RST, _DIM, _BOLD, _GREY
 from platforms import get_platform, list_platforms
 from commands import register_command, get_command, list_commands
@@ -507,8 +504,10 @@ class Harm0nyz3rConsole:
                 
                 # --- END NEW ---
 
-                # --- NEW: Handle UDMF_QUERY_RESULT from HarmonyOS App ---
-                elif decoded_data.startswith('UDMF_QUERY_RESULT:'):
+                # --- HarmonyOS-only: UDMF_QUERY_RESULT from on-device ArkTS app ---
+                # UDMF (Unified Data Management Framework) is a HarmonyOS concept;
+                # gated so Android replies of similar shape are not mis-parsed here.
+                elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_QUERY_RESULT:'):
                     result_payload = decoded_data[len('UDMF_QUERY_RESULT:'):].strip()
                     try:
                         udmf_data = json.loads(result_payload)
@@ -525,8 +524,8 @@ class Harm0nyz3rConsole:
                         print(f"\n--- UDMF Query Result (Raw) ---")
                         print(result_payload)
                         print("-----------------------------\n")
-                # --- NEW: Handle UDMF_APPS_WITH_CONTENT from HarmonyOS App ---
-                elif decoded_data.startswith('UDMF_APPS_WITH_CONTENT:'):
+                # --- HarmonyOS-only: UDMF_APPS_WITH_CONTENT from on-device ArkTS app ---
+                elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_APPS_WITH_CONTENT:'):
                     result_payload = decoded_data[len('UDMF_APPS_WITH_CONTENT:'):].strip()
                     try:
                         apps_with_content = json.loads(result_payload)
@@ -541,7 +540,7 @@ class Harm0nyz3rConsole:
                         print(f"\n--- Apps with UDMF Content (Raw) ---")
                         print(result_payload)
                         print("----------------------------------\n")
-                # --- END NEW ---
+                # --- END HarmonyOS-only handlers ---
 
                 # In case the app sends JSON in the future, keep this simple check.
                 try:
