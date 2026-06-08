@@ -371,6 +371,80 @@ class Harm0nyz3rConsole:
 
         return True
 
+    def _ensure_port_forward(self) -> None:
+        """
+        F1 — auto-establish the host-to-device port forward at connect time.
+
+        Android only.  HarmonyOS users continue to set up `hdc fport` manually
+        as documented (keeps the existing workflow bit-for-bit identical).
+
+        Idempotent: re-running `adb forward` with the same pair is a no-op on
+        adb's side, so calling this on every connect is safe.  Always passes
+        '-s <device_id>' so the wrong transport (e.g. a stray wireless-adb
+        session for the same device) cannot silently steal the request.
+        """
+        if self.platform.name != "android":
+            return
+        if not self.device_id:
+            return
+        try:
+            args = self.platform.port_forward_args(self.device_id, self.port, self.port)
+        except NotImplementedError:
+            return
+        self._print_message(
+            "INFO",
+            f"Setting up {self.platform.bridge_command} forward "
+            f"tcp:{self.port} -> tcp:{self.port} on device '{self.device_id}'..."
+        )
+        stdout, stderr, retcode = self._run_bridge(args)
+        if retcode == 0:
+            self._print_message("INFO", "Port forward ready.")
+        else:
+            msg = (stderr or stdout or f"return code {retcode}").strip()
+            self._print_message(
+                "WARNING",
+                f"Auto port-forward failed: {msg}.  "
+                "Continuing anyway in case an existing forward is already in place."
+            )
+
+    def _diagnose_connection_refused(self) -> None:
+        """
+        F3 — when the TCP connect is refused, surface actionable detail.
+
+        Android only.  Shows the current `adb forward --list` and prints the
+        exact command needed to recreate the forward (with -s <serial> to
+        disambiguate when several transports are registered for the same
+        device — the most common silent failure mode).
+        """
+        self._print_message(
+            "INFO",
+            f"   - Nothing is listening on {self.host}:{self.port}.  "
+            "Usually that means the host-to-device port forward is missing."
+        )
+        if self.platform.name == "android":
+            try:
+                stdout, _, retcode = self._run_bridge(["forward", "--list"])
+            except Exception:
+                stdout, retcode = "", -1
+            if retcode == 0:
+                if stdout.strip():
+                    indented = "\n".join(f"       {ln}" for ln in stdout.splitlines())
+                    self._print_message("INFO", f"   - Active adb forwards:\n{indented}")
+                else:
+                    self._print_message("INFO", "   - No active adb forwards.")
+            if self.device_id:
+                suggested = (
+                    f"adb -s {self.device_id} forward "
+                    f"tcp:{self.port} tcp:{self.port}"
+                )
+            else:
+                suggested = f"adb forward tcp:{self.port} tcp:{self.port}"
+            self._print_message("INFO", f"   - Suggested fix:  {suggested}")
+        self._print_message(
+            "INFO",
+            f"   - Then make sure the {self._agent_label} is running on the device."
+        )
+
     def connect(self):
         """
         Establishes a raw TCP connection, performs a 'MARCO'-'POLO' handshake.
@@ -393,8 +467,11 @@ class Harm0nyz3rConsole:
                 f"No active {self.platform.name} device detected. "
                 "Some commands (e.g., 'apps_list', 'app_info') might not work."
             )
+        else:
+            # F1: ensure the host-to-device port forward exists before connecting.
+            self._ensure_port_forward()
 
-        if self.socket: 
+        if self.socket:
             self._print_message("DEBUG", "Disconnecting previous incomplete/failed socket before new attempt.")
             self.disconnect()
             time.sleep(0.1) 
@@ -459,8 +536,8 @@ class Harm0nyz3rConsole:
             return False
         except ConnectionRefusedError:
             self._print_message("ERROR", f"Connection refused by {self.host}:{self.port}.")
-            self._print_message("INFO", "   - This usually means no server is actively listening on that address/port.")
-            self._print_message("INFO", f"   - Please ensure the {self._agent_label} is running and accessible from this machine.")
+            # F3: actionable diagnosis (lists active forwards, suggests the exact fix).
+            self._diagnose_connection_refused()
             self._cleanup_socket()
             return False
         except Exception as e:
@@ -863,8 +940,7 @@ class Harm0nyz3rConsole:
                 steps = [
                     "Install & launch the Harm0niz3r app on the Android device.",
                     f"Tap 'Start Agent' — listens on 127.0.0.1:{self.port}.",
-                    f"Forward the port:  {th.EX_CMD}adb forward tcp:{self.port} tcp:{self.port}{R}",
-                    f"Type  {th.EX_CMD}connect{R}  to establish the session.",
+                    f"Type  {th.EX_CMD}connect{R}  — the adb port forward is set up automatically.",
                 ]
             elif is_harmonyos:
                 steps = [
