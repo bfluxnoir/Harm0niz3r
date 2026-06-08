@@ -14,10 +14,10 @@ import androidx.core.app.NotificationCompat
  * Foreground service that owns the TCP server lifecycle.
  * Survives app minimisation so the connection to the Python host stays alive.
  */
-class Harm0nizerService : Service() {
+class Harm0niz3rService : Service() {
 
     companion object {
-        const val TAG = "Harm0nizerService"
+        const val TAG = "Harm0niz3rService"
         const val PORT = 51337
         private const val CHANNEL_ID = "harm0niz3r_channel"
         private const val NOTIFICATION_ID = 1337
@@ -51,7 +51,7 @@ class Harm0nizerService : Service() {
                 updateNotification(msg)
             }
         )
-        Thread(tcpServer, "Harm0nizer-TCP").start()
+        Thread(tcpServer, "Harm0niz3r-TCP").start()
 
         return START_STICKY
     }

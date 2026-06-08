@@ -49,7 +49,7 @@ class TcpServer(
                 // Keep the connection alive when idle so the OS detects broken tunnels
                 try { client.keepAlive = true } catch (_: Exception) {}
                 onStatusChange("Client connected: ${client.inetAddress.hostAddress}")
-                Thread({ handleClient(client) }, "Harm0nizer-Client").start()
+                Thread({ handleClient(client) }, "Harm0niz3r-Client").start()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Server error: ${e.message}")

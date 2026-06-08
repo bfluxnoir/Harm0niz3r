@@ -32,7 +32,7 @@
         </activity>
 
         <service
-            android:name=".Harm0nizerService"
+            android:name=".Harm0niz3rService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 

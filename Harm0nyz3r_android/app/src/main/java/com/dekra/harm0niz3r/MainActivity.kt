@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 /**
  * Minimal launcher Activity.
- * Its only job is to start/stop the Harm0nizerService and show status.
+ * Its only job is to start/stop the Harm0niz3rService and show status.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -23,11 +23,11 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.toggleButton)
 
         toggleButton.setOnClickListener {
-            if (Harm0nizerService.isRunning) {
-                stopService(Intent(this, Harm0nizerService::class.java))
+            if (Harm0niz3rService.isRunning) {
+                stopService(Intent(this, Harm0niz3rService::class.java))
                 updateUi(running = false)
             } else {
-                startForegroundService(Intent(this, Harm0nizerService::class.java))
+                startForegroundService(Intent(this, Harm0niz3rService::class.java))
                 updateUi(running = true)
             }
         }
@@ -35,12 +35,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateUi(Harm0nizerService.isRunning)
+        updateUi(Harm0niz3rService.isRunning)
     }
 
     private fun updateUi(running: Boolean) {
         if (running) {
-            statusText.text = getString(R.string.status_running, Harm0nizerService.PORT)
+            statusText.text = getString(R.string.status_running, Harm0niz3rService.PORT)
             toggleButton.text = getString(R.string.stop_service)
         } else {
             statusText.text = getString(R.string.status_stopped)
