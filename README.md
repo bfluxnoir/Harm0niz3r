@@ -150,6 +150,7 @@ When running with `--platform android` the following commands are available:
 | `app_permissions <package> [--dangerous]` | Show requested / granted permissions |
 | `app_provider <authority> [columns]` | Query a Content Provider by URI |
 | `shell_exec <cmd>` | Execute a shell command on the device |
+| `agent_exec <cmd> [args]` | Route a command to the on-device agent instead of direct `adb` |
 
 ## HarmonyOS Commands
 
@@ -311,7 +312,8 @@ Harm0nyz3r_android/
 - Runs as a `START_STICKY` foreground service to survive background restrictions.
 - Binds only to `127.0.0.1:51337` (loopback) — traffic never leaves the device.
 - MARCO-POLO handshake extended: Android agent replies `POLO:android:2.0` so the client can detect the platform version.
-- `CommandHandler` dispatches the same command set as the HarmonyOS agent: `apps_list`, `app_surface`, `app_info`, `apps_visible_abilities`, `app_ability`, `shell_exec`, `app_provider`.
+- `CommandHandler` dispatches the full Android command set: `apps_list`, `app_info`, `app_surface`, `apps_visible_abilities`, `app_ability`, `app_ability_want`, `app_ability_fuzz`, `app_broadcast`, `app_deeplink`, `app_permissions`, `app_provider`, `shell_exec`.
+- The Python client reaches the agent with `agent_exec <cmd> [args]`, which sends a `COMMAND_REQUEST:` over the socket; the agent runs the command in-process and replies. Most other Android CLI commands talk to the device directly via `adb`.
 - Requires `QUERY_ALL_PACKAGES` permission (declared in `AndroidManifest.xml`).
 - UI palette: dark background `#1A1A2E` with Material Green `#4CAF50` accents, replacing the red HarmonyOS palette.
 
@@ -349,7 +351,7 @@ Harm0niz3r/
     │
     └── commands/                  # Modular command registry
         ├── base.py                # Command abstract class
-        ├── android/               # Android-specific commands (12 total)
+        ├── android/               # Android-specific commands (13 total)
         │   ├── apps_list.py
         │   ├── app_info.py
         │   ├── app_surface.py
@@ -361,7 +363,8 @@ Harm0niz3r/
         │   ├── app_deeplink.py
         │   ├── app_permissions.py
         │   ├── app_provider.py
-        │   └── shell_exec.py
+        │   ├── shell_exec.py
+        │   └── agent_exec.py
         ├── apps_list.py           # HarmonyOS commands
         ├── app_info.py
         ├── app_surface.py

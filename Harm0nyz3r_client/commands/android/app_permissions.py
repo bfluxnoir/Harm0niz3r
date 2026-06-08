@@ -55,7 +55,7 @@ class AndroidAppPermissionsCommand(Command):
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
@@ -71,7 +71,7 @@ class AndroidAppPermissionsCommand(Command):
             console._print_message("ERROR", f"Invalid package name: '{package}'")
             return
 
-        stdout, stderr, ret = console._get_hdc_shell_output(["pm", "dump", package])
+        stdout, stderr, ret = console._run_shell(["pm", "dump", package])
         if ret != 0 or not stdout:
             console._print_message("ERROR", f"pm dump failed: {stderr or 'no output'}")
             return

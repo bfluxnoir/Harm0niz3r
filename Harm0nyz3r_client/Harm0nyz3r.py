@@ -57,8 +57,8 @@ class HarmonyOSClientConsole:
 
         self._input_active = False
         self._current_prompt_text = "[You] Enter command: "
-        self.hdc_device_id = None
-        self.hdc_device_name = "No Device"
+        self.device_id = None
+        self.device_name = "No Device"
         self.user_name_on_device = "You"
         self.verbose = False
         self._register_builtin_commands()
@@ -67,6 +67,9 @@ class HarmonyOSClientConsole:
         # --- shell_exec / sandbox shell state ---
         self.exec_result = None
         self._sandbox_shell_active = False
+        # --- agent_exec state ---
+        self.last_agent_response = None
+        self._awaiting_agent_reply = False
         
     # ------------------------------------------------------------------
     # Command registration
@@ -106,6 +109,7 @@ class HarmonyOSClientConsole:
             android_commands.app_permissions.register(register_command)
             android_commands.app_provider.register(register_command)
             android_commands.shell_exec.register(register_command)
+            android_commands.agent_exec.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available
@@ -128,7 +132,7 @@ class HarmonyOSClientConsole:
           - Start 'hilog -r' in the background, redirecting to that file.
           - Store the PID so we can stop it later.
         """
-        if not self.hdc_device_id:
+        if not self.device_id:
             # No device → skip logging rather than crash
             self._print_message("WARNING", "No HDC device; skipping device logging.")
             return
@@ -152,8 +156,8 @@ class HarmonyOSClientConsole:
             f"Starting device logging for '{command_name}' into {remote_filename}"
         )
 
-        # Use your existing _get_hdc_shell_output or _execute_hdc_command:
-        stdout, stderr, retcode = self._get_hdc_shell_output(
+        # Use your existing _run_shell or _run_bridge:
+        stdout, stderr, retcode = self._run_shell(
             [shell_cmd]
         )
 
@@ -187,7 +191,7 @@ class HarmonyOSClientConsole:
         """
         Stop device-side logging (if started) and pull the log file to the host.
         """
-        if not self.hdc_device_id or not self._device_log_remote_path:
+        if not self.device_id or not self._device_log_remote_path:
             # Logging never started or failed early
             if self.verbose:
                 self._print_message("DEBUG", "No device logging session to stop.")
@@ -205,7 +209,7 @@ class HarmonyOSClientConsole:
         # 1) Try to stop the hilog process cleanly, if we have its PID
         if pid is not None:
             kill_cmd = f"kill {pid}"
-            _, stderr_kill, ret_kill = self._get_hdc_shell_output(
+            _, stderr_kill, ret_kill = self._run_shell(
                 [f"kill -9 {pid}"]
             )
             if ret_kill != 0 and self.verbose:
@@ -220,8 +224,8 @@ class HarmonyOSClientConsole:
         if local is None:
             local = os.path.abspath(f"harm0nyz3r_{command_name}_log.log")
 
-        recv_cmd = self.platform.pull_file_args(self.hdc_device_id, remote, local)
-        stdout_recv, stderr_recv, ret_recv = self._execute_hdc_command(recv_cmd)
+        recv_cmd = self.platform.pull_file_args(self.device_id, remote, local)
+        stdout_recv, stderr_recv, ret_recv = self._run_bridge(recv_cmd)
 
         if ret_recv != 0:
             self._print_message(
@@ -235,8 +239,8 @@ class HarmonyOSClientConsole:
             )
 
         # 3) (Optional) Remove remote file to avoid filling /data/local/tmp
-        rm_cmd = ["-t", self.hdc_device_id, "shell", f"rm -f {remote}"]
-        _, stderr_rm, ret_rm = self._execute_hdc_command(rm_cmd)
+        rm_cmd = ["-t", self.device_id, "shell", f"rm -f {remote}"]
+        _, stderr_rm, ret_rm = self._run_bridge(rm_cmd)
         if ret_rm != 0 and self.verbose:
             self._print_message(
                 "WARNING",
@@ -274,7 +278,7 @@ class HarmonyOSClientConsole:
                     self._print_message("WARNING", f"Warning during socket cleanup: {e}")
             self.socket = None
 
-    def _execute_hdc_command(self, args_list):
+    def _run_bridge(self, args_list):
         """
         Executes a bridge command (hdc/adb/…) and returns stdout, stderr, returncode.
         Delegates to the active platform adapter.
@@ -295,13 +299,13 @@ class HarmonyOSClientConsole:
             self._print_message("ERROR", stderr)
         return stdout, stderr, retcode
 
-    def _get_hdc_shell_output(self, hdc_shell_cmd_args):
+    def _run_shell(self, hdc_shell_cmd_args):
         """
         Executes a device shell command via the active platform bridge.
         This function does NOT handle printing or sending to the agent;
         it just retrieves the raw output.
         """
-        if not self.hdc_device_id:
+        if not self.device_id:
             self._print_message(
                 "ERROR",
                 f"No {self.platform.name} device is connected. "
@@ -309,21 +313,21 @@ class HarmonyOSClientConsole:
             )
             return "", f"No {self.platform.name} device found.", -1
 
-        full_hdc_args = self.platform.device_shell_args(self.hdc_device_id) + hdc_shell_cmd_args
+        full_hdc_args = self.platform.device_shell_args(self.device_id) + hdc_shell_cmd_args
         self._print_message(
             "INFO",
             f"Executing: '{self.platform.bridge_command} {' '.join(full_hdc_args)}'"
         )
-        stdout, stderr, retcode = self._execute_hdc_command(full_hdc_args)
+        stdout, stderr, retcode = self._run_bridge(full_hdc_args)
         return stdout, stderr, retcode
 
-    def _get_hdc_device_info(self):
+    def _detect_device(self):
         """
         Detects a connected device via the active platform adapter and
-        updates self.hdc_device_id / hdc_device_name / user_name_on_device.
+        updates self.device_id / hdc_device_name / user_name_on_device.
         """
-        self.hdc_device_id = None
-        self.hdc_device_name = "No Device"
+        self.device_id = None
+        self.device_name = "No Device"
         self.user_name_on_device = "You"
 
         self._print_message(
@@ -340,18 +344,18 @@ class HarmonyOSClientConsole:
             )
             return False
 
-        self.hdc_device_id = device_id
-        self.hdc_device_name = device_name or device_id
+        self.device_id = device_id
+        self.device_name = device_name or device_id
         self._print_message(
             "SUCCESS",
             f"Detected {self.platform.name} device: "
-            f"ID='{self.hdc_device_id}', Name='{self.hdc_device_name}'"
+            f"ID='{self.device_id}', Name='{self.device_name}'"
         )
 
         # Try whoami (generic shell command — works on both HarmonyOS and Android)
         self._print_message("DEBUG", "Attempting 'whoami' on device...")
-        whoami_args = self.platform.device_shell_args(self.hdc_device_id) + ["whoami"]
-        user_stdout, user_stderr, user_retcode = self._execute_hdc_command(whoami_args)
+        whoami_args = self.platform.device_shell_args(self.device_id) + ["whoami"]
+        user_stdout, user_stderr, user_retcode = self._run_bridge(whoami_args)
         if user_retcode == 0 and user_stdout:
             self.user_name_on_device = user_stdout.strip()
         else:
@@ -374,7 +378,7 @@ class HarmonyOSClientConsole:
             "INFO",
             f"Checking for {self.platform.name} device via '{self.platform.bridge_command}'..."
         )
-        hdc_device_found = self._get_hdc_device_info()
+        hdc_device_found = self._detect_device()
 
         self._update_prompt()
 
@@ -473,12 +477,15 @@ class HarmonyOSClientConsole:
                     break 
                 
                 decoded_data = data.decode('utf-8').strip()
-                
+                # Capture the latest agent message so synchronous commands
+                # (e.g. agent_exec) can wait for and consume the reply.
+                self.last_agent_response = decoded_data
+
                 # If the main input loop is active, clear the line, print, then redraw prompt
                 if self._input_active:
-                    sys.stdout.write('\r' + ' ' * (len(self._current_prompt_text) + self.buffer_size) + '\r') 
+                    sys.stdout.write('\r' + ' ' * (len(self._current_prompt_text) + self.buffer_size) + '\r')
                     sys.stdout.flush()
-                if not self._sandbox_shell_active:
+                if not self._sandbox_shell_active and not self._awaiting_agent_reply:
                     self._print_message("INFO", f"[APP MESSAGE] {decoded_data}") # Print received data with clear tag
                 if decoded_data.startswith("EXEC_RESULT:"):
                     # The shell_exec command is waiting on this
@@ -691,8 +698,8 @@ class HarmonyOSClientConsole:
         self._print_message("INFO", "Disconnecting...")
         self.connected = False 
         self._receive_thread_running = False 
-        self.hdc_device_id = None
-        self.hdc_device_name = "No Device"
+        self.device_id = None
+        self.device_name = "No Device"
         self.user_name_on_device = "You"
         self._update_prompt()
 
@@ -706,7 +713,7 @@ class HarmonyOSClientConsole:
         self._cleanup_socket() 
         self._print_message("INFO", "Disconnected.")
 
-    def _execute_and_handle_hdc_command(self, hdc_shell_cmd_args, send_to_app_type=None, console_output_prefix="", force_send_to_app=False):
+    def _run_shell_and_dispatch(self, hdc_shell_cmd_args, send_to_app_type=None, console_output_prefix="", force_send_to_app=False):
         """
         Executes an hdc shell command, prints to console, and optionally sends to app
         with a specific message type.
@@ -720,7 +727,7 @@ class HarmonyOSClientConsole:
             force_send_to_app (bool): If True, output is always sent to the app if connected,
                                       overriding local console printing for success cases.
         """
-        if not self.hdc_device_id:
+        if not self.device_id:
             error_msg = (
                 f"No {self.platform.name} device is connected via "
                 f"'{self.platform.bridge_command}'. Cannot execute shell commands."
@@ -730,13 +737,13 @@ class HarmonyOSClientConsole:
                 self.send_data_to_app(f"HDC_OUTPUT_ERROR:{error_msg}")
             return
 
-        full_hdc_args = self.platform.device_shell_args(self.hdc_device_id) + hdc_shell_cmd_args
+        full_hdc_args = self.platform.device_shell_args(self.device_id) + hdc_shell_cmd_args
 
         self._print_message(
             "INFO",
             f"Executing: '{self.platform.bridge_command} {' '.join(full_hdc_args)}'..."
         )
-        stdout, stderr, retcode = self._execute_hdc_command(full_hdc_args)
+        stdout, stderr, retcode = self._run_bridge(full_hdc_args)
 
         if retcode == 0:
             raw_output = stdout
@@ -772,7 +779,7 @@ class HarmonyOSClientConsole:
         th  = get_theme(self.platform.name)
         pc  = th.PROMPT_CONN if self.connected else th.PROMPT_DISC
         self._current_prompt_text = (
-            f"{pc}[{self.user_name_on_device}@{self.hdc_device_name}]{_RST}"
+            f"{pc}[{self.user_name_on_device}@{self.device_name}]{_RST}"
             f" {_DIM}›{_RST} "
         )
 
@@ -795,14 +802,14 @@ class HarmonyOSClientConsole:
         # Command should be:
         #hdc -t 23E0223C01002818 shell aa start -b com.dekra.dvha -a ExposedCredentialsAbility --ps status already_logged
 
-        cmd = self.platform.device_shell_args(self.hdc_device_id) + [
+        cmd = self.platform.device_shell_args(self.device_id) + [
             "aa", "start",
             "-b", bundle_name,
             "-a", ability_name,
             "--params", key, value,
         ]
 
-        stdout, stderr, ret = self._execute_hdc_command(cmd)
+        stdout, stderr, ret = self._run_bridge(cmd)
 
         self._print_message("INFO",f"stdout: {stdout}")
         self._print_message("INFO",f"stderr: {stderr}")
@@ -833,11 +840,11 @@ class HarmonyOSClientConsole:
             f"{th.VERBOSE_ON}ON{R}"  if self.verbose
             else f"{th.VERBOSE_OFF}OFF{R}"
         )
-        dev_id = self.hdc_device_id if self.hdc_device_id else "none"
+        dev_id = self.device_id if self.device_id else "none"
 
         print(f"  {th.LABEL}server   {R}  {th.VALUE}{self.host}:{self.port}{R}")
         print(f"  {th.LABEL}status   {R}  {conn_str}")
-        print(f"  {th.LABEL}device   {R}  {th.VALUE}{self.hdc_device_name}{R}  "
+        print(f"  {th.LABEL}device   {R}  {th.VALUE}{self.device_name}{R}  "
               f"{th.LABEL}id:{R} {th.VALUE}{dev_id}{R}")
         print(f"  {th.LABEL}verbose  {R}  {verbose_str}")
         print(f"{th.SEPARATOR}{'─' * W}{R}")
@@ -946,7 +953,7 @@ class HarmonyOSClientConsole:
                     print(f"  {th.EX_CMD}{ex_cmd}{R}")
 
         # ── No-device hint ────────────────────────────────────────────────
-        if not self.hdc_device_id:
+        if not self.device_id:
             print(
                 f"\n  {th.HINT_TAG}⚠  No {self.platform.name} device detected via "
                 f"'{self.platform.bridge_command}'.  "
@@ -1035,7 +1042,7 @@ class HarmonyOSClientConsole:
     def start_console(self):
         """Starts the interactive console loop."""
         print(get_ascii_art(self.platform.name))  # Platform-aware banner
-        self._get_hdc_device_info()
+        self._detect_device()
         self._update_prompt()
 
         # Auto-connect on startup so the user doesn't have to type 'connect' manually.
@@ -1065,6 +1072,37 @@ class HarmonyOSClientConsole:
         # On exit, cleanup
         self.disconnect()
         self._print_message("INFO", "Goodbye!")
+
+    # ------------------------------------------------------------------
+    # Backwards-compatibility shims for the HarmonyOS command layer.
+    # The canonical attribute and method names are bridge-neutral
+    # (device_id / _detect_device / _run_bridge / _run_shell / ...).
+    # The hdc_* names below are retained as aliases so existing HarmonyOS
+    # commands keep working without modification.  New code (Android,
+    # iOS, shared) should use the canonical names.
+    # ------------------------------------------------------------------
+
+    @property
+    def hdc_device_id(self):
+        return self.device_id
+
+    @hdc_device_id.setter
+    def hdc_device_id(self, value):
+        self.device_id = value
+
+    @property
+    def hdc_device_name(self):
+        return self.device_name
+
+    @hdc_device_name.setter
+    def hdc_device_name(self, value):
+        self.device_name = value
+
+    _get_hdc_device_info = _detect_device
+    _execute_hdc_command = _run_bridge
+    _get_hdc_shell_output = _run_shell
+    _execute_and_handle_hdc_command = _run_shell_and_dispatch
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

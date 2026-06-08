@@ -13,6 +13,7 @@ from . import (
     app_permissions,
     app_provider,
     shell_exec,
+    agent_exec,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "app_permissions",
     "app_provider",
     "shell_exec",
+    "agent_exec",
 ]

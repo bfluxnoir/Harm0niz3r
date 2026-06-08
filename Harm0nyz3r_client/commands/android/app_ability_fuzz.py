@@ -69,7 +69,7 @@ class AndroidAppAbilityFuzzCommand(Command):
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
@@ -198,7 +198,7 @@ class AndroidAppAbilityFuzzCommand(Command):
                 if console.verbose:
                     console._print_message("DEBUG", " ".join(cmd))
 
-                stdout, stderr, ret = console._get_hdc_shell_output(cmd)
+                stdout, stderr, ret = console._run_shell(cmd)
                 elapsed = time.time() - start_time
 
                 if log_file:

@@ -29,7 +29,7 @@ class AndroidAppDeeplinkCommand(Command):
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
@@ -49,7 +49,7 @@ class AndroidAppDeeplinkCommand(Command):
                 i += 1
 
         console._print_message("INFO", f"Triggering deep link: {uri}")
-        stdout, stderr, ret = console._get_hdc_shell_output(cmd)
+        stdout, stderr, ret = console._run_shell(cmd)
 
         if ret == 0:
             console._print_message("INFO", "Deep link triggered. Check device for response.")

@@ -38,7 +38,7 @@ class AndroidAppProviderCommand(Command):
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
@@ -63,7 +63,7 @@ class AndroidAppProviderCommand(Command):
             send_to_app = False
 
         # --- Enumerate providers ---
-        stdout, stderr, ret = console._get_hdc_shell_output(["pm", "dump", package])
+        stdout, stderr, ret = console._run_shell(["pm", "dump", package])
         if ret != 0 or not stdout:
             console._print_message("ERROR", f"pm dump failed: {stderr or 'no output'}")
             return
@@ -84,7 +84,7 @@ class AndroidAppProviderCommand(Command):
         # --- Query a specific URI if given ---
         if uri:
             console._print_message("INFO", f"Querying: {uri}")
-            q_stdout, q_stderr, q_ret = console._get_hdc_shell_output(
+            q_stdout, q_stderr, q_ret = console._run_shell(
                 ["content", "query", "--uri", uri]
             )
             if q_ret != 0:
@@ -101,7 +101,7 @@ class AndroidAppProviderCommand(Command):
             print()
 
             if send_to_app and console.connected:
-                console.send_data_to_app(f"UDMF_QUERY_RESULT:{json.dumps(result)}")
+                console.send_data_to_app(f"PROVIDER_QUERY_RESULT:{json.dumps(result)}")
 
 
 def register(registry_func):

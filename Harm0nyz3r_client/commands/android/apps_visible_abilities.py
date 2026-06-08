@@ -12,12 +12,12 @@ def _extract_exported_activities(console, send_to_app: bool = False) -> None:
     Activities that have no required permission (analogous to HarmonyOS
     apps_visible_abilities).
     """
-    if not console.hdc_device_id:
+    if not console.device_id:
         console._print_message("ERROR", "No Android device connected via adb.")
         return
 
     console._print_message("INFO", "Fetching package list...")
-    stdout, stderr, retcode = console._get_hdc_shell_output(
+    stdout, stderr, retcode = console._run_shell(
         ["pm", "list", "packages", "-f", "-3"]  # third-party only for speed
     )
     if retcode != 0 or not stdout:
@@ -30,7 +30,7 @@ def _extract_exported_activities(console, send_to_app: bool = False) -> None:
     exported_activities = []
 
     for pkg in packages:
-        app_stdout, _, app_ret = console._get_hdc_shell_output(["pm", "dump", pkg])
+        app_stdout, _, app_ret = console._run_shell(["pm", "dump", pkg])
         if app_ret != 0 or not app_stdout:
             continue
         try:

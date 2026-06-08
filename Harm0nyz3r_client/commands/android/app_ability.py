@@ -22,7 +22,7 @@ class AndroidAppAbilityCommand(Command):
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
@@ -42,7 +42,7 @@ class AndroidAppAbilityCommand(Command):
         component = f"{package}/{activity}"
 
         console._print_message("INFO", f"Starting Activity: {component}")
-        stdout, stderr, ret = console._get_hdc_shell_output(["am", "start", "-n", component])
+        stdout, stderr, ret = console._run_shell(["am", "start", "-n", component])
 
         if ret == 0:
             console._print_message("INFO", "am start executed. Check device for result.")

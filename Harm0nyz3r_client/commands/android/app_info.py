@@ -35,7 +35,7 @@ class AndroidAppInfoCommand(Command):
             console._print_message("WARNING", "Not connected to agent. Printing to console.")
             send_to_app = False
 
-        stdout, stderr, retcode = console._get_hdc_shell_output(["pm", "dump", package])
+        stdout, stderr, retcode = console._run_shell(["pm", "dump", package])
 
         if retcode != 0 or not stdout:
             console._print_message("ERROR", f"pm dump failed: {stderr or 'no output'}")

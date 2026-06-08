@@ -45,7 +45,7 @@ class AndroidAppsListCommand(Command):
         if third_party_only:
             pm_args.append("-3")
 
-        stdout, stderr, retcode = console._get_hdc_shell_output(pm_args)
+        stdout, stderr, retcode = console._run_shell(pm_args)
 
         if retcode != 0:
             console._print_message("ERROR", f"pm list packages failed: {stderr or 'no output'}")

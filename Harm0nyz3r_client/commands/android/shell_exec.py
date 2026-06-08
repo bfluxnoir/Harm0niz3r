@@ -38,21 +38,21 @@ class AndroidShellExecCommand(Command):
             console._print_message("WARNING", "shell_exec is only available from the CLI.")
             return
 
-        if not console.hdc_device_id:
+        if not console.device_id:
             console._print_message("ERROR", "No Android device connected via adb.")
             return
 
         sandbox_pkg = args[0] if args else None
 
         if sandbox_pkg:
-            cmd = ["adb", "-s", console.hdc_device_id, "shell", "run-as", sandbox_pkg]
+            cmd = ["adb", "-s", console.device_id, "shell", "run-as", sandbox_pkg]
             console._print_message(
                 "INFO",
                 f"Opening sandbox shell for '{sandbox_pkg}'  (run-as).  "
                 "App must be a debuggable build."
             )
         else:
-            cmd = ["adb", "-s", console.hdc_device_id, "shell"]
+            cmd = ["adb", "-s", console.device_id, "shell"]
             console._print_message(
                 "INFO",
                 "Opening interactive adb shell.  Type 'exit' to return to Harm0nyz3r."
