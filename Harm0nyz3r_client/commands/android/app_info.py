@@ -53,7 +53,7 @@ class AndroidAppInfoCommand(Command):
             print(f"  Target SDK : {parsed.get('targetSdk')}   Min SDK: {parsed.get('minSdk')}")
             print(f"  Debug      : {parsed.get('debugMode')}")
             print(f"  System App : {parsed.get('systemApp')}")
-            perms = parsed.get("requiredAppPermissions", [])
+            perms = parsed.get("requestedAppPermissions", [])
             print(f"  Permissions: {len(perms)}")
             for p in perms:
                 print(f"    - {p}")

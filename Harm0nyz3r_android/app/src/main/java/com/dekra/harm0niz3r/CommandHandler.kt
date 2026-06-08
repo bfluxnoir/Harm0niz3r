@@ -137,7 +137,7 @@ class CommandHandler(private val context: Context) {
 
         val perms = JSONArray()
         info.requestedPermissions?.forEach { perms.put(it) }
-        obj.put("requiredAppPermissions", perms)
+        obj.put("requestedAppPermissions", perms)
 
         val components = JSONArray()
 
@@ -207,7 +207,7 @@ class CommandHandler(private val context: Context) {
         obj.put("systemApp", info.applicationInfo?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0)
         val perms = JSONArray()
         info.requestedPermissions?.forEach { perms.put(it) }
-        obj.put("requiredAppPermissions", perms)
+        obj.put("requestedAppPermissions", perms)
         send(writer, "APP_INFO_RESULT", obj.toString())
     }
 
@@ -474,7 +474,7 @@ class CommandHandler(private val context: Context) {
         obj.put("debugMode", info.applicationInfo?.flags?.and(android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
         obj.put("systemApp", info.applicationInfo?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0)
         obj.put("dangerousOnly", dangerousOnly)
-        obj.put("requiredAppPermissions", requested)
+        obj.put("requestedAppPermissions", requested)
         obj.put("grantedPermissions", granted)
         send(writer, "APP_PERMISSIONS_RESULT", obj.toString())
     }

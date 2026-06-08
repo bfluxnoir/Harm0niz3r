@@ -66,7 +66,7 @@ def parse_pm_dump(dump_output: str, package_name: str) -> dict:
             "versionCode": int | None,
             "targetSdk": int | None,
             "minSdk": int | None,
-            "requiredAppPermissions": [...],
+            "requestedAppPermissions": [...],
             "grantedPermissions": [...],
             "exposedComponents": [
                 {
@@ -89,7 +89,7 @@ def parse_pm_dump(dump_output: str, package_name: str) -> dict:
         "versionCode": None,
         "targetSdk": None,
         "minSdk": None,
-        "requiredAppPermissions": [],
+        "requestedAppPermissions": [],
         "grantedPermissions": [],
         "exposedComponents": [],
     }
@@ -121,8 +121,8 @@ def parse_pm_dump(dump_output: str, package_name: str) -> dict:
     )
     if req_block:
         for perm in re.findall(r"android\.\S+|com\.\S+|org\.\S+", req_block.group(1)):
-            if perm not in result["requiredAppPermissions"]:
-                result["requiredAppPermissions"].append(perm)
+            if perm not in result["requestedAppPermissions"]:
+                result["requestedAppPermissions"].append(perm)
 
     # --- Granted permissions (install + runtime) ---
     for block_name in ("install permissions", "runtime permissions"):

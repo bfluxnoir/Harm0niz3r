@@ -77,7 +77,7 @@ class AndroidAppPermissionsCommand(Command):
             return
 
         parsed = parse_pm_dump(stdout, package)
-        requested = parsed.get("requiredAppPermissions", [])
+        requested = parsed.get("requestedAppPermissions", [])
         granted = parsed.get("grantedPermissions", [])
 
         if dangerous_only:
