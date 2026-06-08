@@ -55,7 +55,7 @@ private val DANGEROUS_PERMISSIONS = setOf(
  * apps_list                            → HDC_OUTPUT_ALL_APPS:<json array of package names>
  * app_surface <package>                → HDC_OUTPUT_APP_SURFACE_JSON:<json>
  * app_info <package>                   → HDC_OUTPUT_APP_DETAILS:<json>
- * apps_visible_abilities               → HDC_OUTPUT_EXPOSED_ABILITIES:<json>
+ * apps_exported_activities             → HDC_OUTPUT_EXPOSED_ABILITIES:<json>  (alias: apps_visible_abilities)
  * app_ability <pkg> <activity>         → EXEC_RESULT:<msg>
  * app_ability_want <pkg> <act> [k=v..] → EXEC_RESULT:<msg>  (Intent extras)
  * app_ability_fuzz <pkg> <act> [..]    → EXEC_RESULT:<summary>  (fuzzed Intent extras)
@@ -92,7 +92,8 @@ class CommandHandler(private val context: Context) {
                 "apps_list"              -> cmdAppsList(writer)
                 "app_surface"            -> cmdAppSurface(args, writer)
                 "app_info"               -> cmdAppInfo(args, writer)
-                "apps_visible_abilities" -> cmdAppsVisibleAbilities(writer)
+                "apps_exported_activities",
+                "apps_visible_abilities" -> cmdAppsExportedActivities(writer)
                 "app_ability"            -> cmdAppAbility(args, writer)
                 "app_ability_want"       -> cmdAppAbilityWant(args, writer)
                 "app_ability_fuzz"       -> cmdAppAbilityFuzz(args, writer)
@@ -211,10 +212,10 @@ class CommandHandler(private val context: Context) {
     }
 
     // ------------------------------------------------------------------
-    // apps_visible_abilities
+    // apps_exported_activities   (alias: apps_visible_abilities)
     // ------------------------------------------------------------------
 
-    private fun cmdAppsVisibleAbilities(writer: PrintWriter) {
+    private fun cmdAppsExportedActivities(writer: PrintWriter) {
         val result = JSONArray()
         val packages = pm.getInstalledPackages(
             PackageManager.GET_ACTIVITIES

@@ -141,7 +141,7 @@ When running with `--platform android` the following commands are available:
 | `apps_list [-a] [-3]` | List installed packages (`-a` all, `-3` third-party only) |
 | `app_info <package>` | Version, SDK, flags and permissions for a package |
 | `app_surface <package>` | All exported components with permissions and intent filters |
-| `apps_visible_abilities` | All exported Activities with no permission guard |
+| `apps_exported_activities` | All exported Activities with no permission guard (alias: `apps_visible_abilities`) |
 | `app_ability <pkg> <activity>` | Launch an Activity via `am start` |
 | `app_ability_want <pkg> <activity> [extras]` | Launch with structured Intent extras |
 | `app_ability_fuzz <pkg> <activity>` | Fuzz-launch an Activity with randomised extras |
@@ -222,7 +222,7 @@ under `platforms/` — the core console, command registry and communication laye
   └────────────────────────────┬─────────────────────────────┘
                                │
   ┌────────────────────────────▼─────────────────────────────┐
-  │                  HarmonyOSClientConsole                    │
+  │                  Harm0nyz3rConsole                         │
   │                                                           │
   │  ┌──────────────────┐   ┌─────────────────────────────┐  │
   │  │    config.py     │   │       Command Registry       │  │
@@ -312,7 +312,7 @@ Harm0nyz3r_android/
 - Runs as a `START_STICKY` foreground service to survive background restrictions.
 - Binds only to `127.0.0.1:51337` (loopback) — traffic never leaves the device.
 - MARCO-POLO handshake extended: Android agent replies `POLO:android:2.0` so the client can detect the platform version.
-- `CommandHandler` dispatches the full Android command set: `apps_list`, `app_info`, `app_surface`, `apps_visible_abilities`, `app_ability`, `app_ability_want`, `app_ability_fuzz`, `app_broadcast`, `app_deeplink`, `app_permissions`, `app_provider`, `shell_exec`.
+- `CommandHandler` dispatches the full Android command set: `apps_list`, `app_info`, `app_surface`, `apps_exported_activities` (alias: `apps_visible_abilities`), `app_ability`, `app_ability_want`, `app_ability_fuzz`, `app_broadcast`, `app_deeplink`, `app_permissions`, `app_provider`, `shell_exec`.
 - The Python client reaches the agent with `agent_exec <cmd> [args]`, which sends a `COMMAND_REQUEST:` over the socket; the agent runs the command in-process and replies. Most other Android CLI commands talk to the device directly via `adb`.
 - Requires `QUERY_ALL_PACKAGES` permission (declared in `AndroidManifest.xml`).
 - UI palette: dark background `#1A1A2E` with Material Green `#4CAF50` accents, replacing the red HarmonyOS palette.
@@ -355,7 +355,7 @@ Harm0niz3r/
         │   ├── apps_list.py
         │   ├── app_info.py
         │   ├── app_surface.py
-        │   ├── apps_visible_abilities.py
+        │   ├── apps_exported_activities.py
         │   ├── app_ability.py
         │   ├── app_ability_want.py
         │   ├── app_ability_fuzz.py

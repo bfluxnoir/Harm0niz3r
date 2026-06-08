@@ -18,10 +18,6 @@ class AndroidAppProviderCommand(Command):
         return "app_provider"
 
     @property
-    def aliases(self) -> List[str]:
-        return ["app_udmf"]   # alias so HarmonyOS muscle-memory still works
-
-    @property
     def supports_logging(self) -> bool:
         return True
 

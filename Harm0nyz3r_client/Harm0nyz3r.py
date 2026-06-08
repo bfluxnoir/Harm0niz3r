@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
  ==========================================================
- HARM0NYZ3R - HarmonyOS Security Companion
+ HARM0NYZ3R - Multi-Platform Mobile App Security Companion
  ==========================================================
  Author: DEKRA
  Version: 1.2.1
@@ -38,7 +38,7 @@ from commands import apps_list, app_info, app_surface, apps_visible_abilities, a
 from commands import android as android_commands
 from commands.base import CommandSource
 
-class HarmonyOSClientConsole:
+class Harm0nyz3rConsole:
     """
     A TCP client that connects to the on-device agent and provides a console interface.
     Platform-specific bridge operations (hdc / adb / iproxy) are delegated to
@@ -100,7 +100,7 @@ class HarmonyOSClientConsole:
             android_commands.apps_list.register(register_command)
             android_commands.app_info.register(register_command)
             android_commands.app_surface.register(register_command)
-            android_commands.apps_visible_abilities.register(register_command)
+            android_commands.apps_exported_activities.register(register_command)
             android_commands.app_ability.register(register_command)
             android_commands.app_ability_want.register(register_command)
             android_commands.app_ability_fuzz.register(register_command)
@@ -253,6 +253,14 @@ class HarmonyOSClientConsole:
         self._device_log_pid = None
 
 
+    @property
+    def _agent_label(self) -> str:
+        """Human-readable name for the on-device agent, used in console messages."""
+        return {
+            "harmonyos": "HarmonyOS app",
+            "android":   "Android agent",
+        }.get(self.platform.name, "agent")
+
     def _print_message(self, level, message):
         """Print a coloured, platform-aware console message.
 
@@ -404,7 +412,7 @@ class HarmonyOSClientConsole:
 
             handshake_command = "MARCO \n\n"
             self.socket.sendall(handshake_command.encode('utf-8'))
-            self._print_message("DEBUG", f"Sent handshake command: '{handshake_command}' to the HarmonyOS server.")
+            self._print_message("DEBUG", f"Sent handshake command: '{handshake_command}' to the {self._agent_label}.")
 
             self._print_message("DEBUG", "Waiting for handshake response (max 5 seconds) from server...")
             response_data = self.socket.recv(self.buffer_size)
@@ -447,15 +455,15 @@ class HarmonyOSClientConsole:
 
         except socket.timeout:
             self._print_message("ERROR", f"Connection or handshake timed out after 5 seconds to {self.host}:{self.port}.")
-            self._print_message("INFO", "   - Is the HarmonyOS server app running?")
-            self._print_message("INFO", "   - Is the HarmonyOS server listening on the correct IP and port?")
+            self._print_message("INFO", f"   - Is the {self._agent_label} running?")
+            self._print_message("INFO", f"   - Is the {self._agent_label} listening on the correct IP and port?")
             self._print_message("INFO", "   - Are there any firewalls blocking the connection on either side?")
             self._cleanup_socket()
             return False
         except ConnectionRefusedError:
             self._print_message("ERROR", f"Connection refused by {self.host}:{self.port}.")
             self._print_message("INFO", "   - This usually means no server is actively listening on that address/port.")
-            self._print_message("INFO", "   - Please ensure the HarmonyOS server is running and accessible from this machine.")
+            self._print_message("INFO", f"   - Please ensure the {self._agent_label} is running and accessible from this machine.")
             self._cleanup_socket()
             return False
         except Exception as e:
@@ -550,7 +558,7 @@ class HarmonyOSClientConsole:
                     sys.stdout.flush()
 
             except ConnectionResetError:
-                self._print_message("INFO", "Connection forcibly closed by the HarmonyOS server.")
+                self._print_message("INFO", f"Connection forcibly closed by the {self._agent_label}.")
                 self.connected = False
                 self._receive_thread_running = False
                 self._cleanup_socket()
@@ -568,7 +576,7 @@ class HarmonyOSClientConsole:
 
     def _process_app_command_request(self, command_payload: str):
         """
-        Processes a command request originating from the HarmonyOS app.
+        Processes a command request originating from the on-device agent.
 
         Instead of duplicating logic for each command, we:
         - parse the command name + args
@@ -669,9 +677,9 @@ class HarmonyOSClientConsole:
             self._current_command_log_enabled = prev_log_flag
 
     def send_data_to_app(self, data_str):
-        """Sends data string to the HarmonyOS app."""
+        """Sends data string to the on-device agent."""
         if not self.connected or not self.socket:
-            self._print_message("INFO", "Not connected to the HarmonyOS app. Cannot send data.")
+            self._print_message("INFO", f"Not connected to the {self._agent_label}. Cannot send data.")
             return False
         try:
             data_str += " \n\n"
@@ -680,10 +688,10 @@ class HarmonyOSClientConsole:
                 self._print_message("WARNING", f"Data to send ({len(encoded_data)} bytes) exceeds buffer size ({self.buffer_size} bytes). This might cause truncation or errors on the receiving end.")
             
             self.socket.sendall(encoded_data)
-            self._print_message("DEBUG", f"Sent to HarmonyOS App (first 100 chars): '{data_str[:100]}...'")
+            self._print_message("DEBUG", f"Sent to {self._agent_label} (first 100 chars): '{data_str[:100]}...'")
             return True
         except Exception as e:
-            self._print_message("ERROR", f"Error sending data to HarmonyOS App: {e}")
+            self._print_message("ERROR", f"Error sending data to {self._agent_label}: {e}")
             self.connected = False 
             self._receive_thread_running = False
             self._cleanup_socket()
@@ -752,7 +760,7 @@ class HarmonyOSClientConsole:
             
             if (send_to_app_type and self.connected) or force_send_to_app: # Send to app if requested OR forced
                 if self.connected: # Double-check connection before sending
-                    self._print_message("INFO", f"Sending RAW hdc command output to HarmonyOS app via socket with type: {send_to_app_type}.")
+                    self._print_message("INFO", f"Sending raw bridge command output to {self._agent_label} via socket with type: {send_to_app_type}.")
                     output_to_send = raw_output.strip()
                     self.send_data_to_app(f"{send_to_app_type}:{output_to_send}")
                 else: # This case should ideally not happen if force_send_to_app implies connected
@@ -769,7 +777,7 @@ class HarmonyOSClientConsole:
             # or if it was a forced send (meaning the request came from the app)
             if (send_to_app_type and self.connected) or force_send_to_app:
                 error_send_type = send_to_app_type.replace("OUTPUT", "ERROR") if send_to_app_type and "OUTPUT" in send_to_app_type else "HDC_OUTPUT_ERROR"
-                self._print_message("INFO", f"Sending hdc command error output to HarmonyOS app via socket with type: {error_send_type}...")
+                self._print_message("INFO", f"Sending bridge command error output to {self._agent_label} via socket with type: {error_send_type}...")
                 self.send_data_to_app(f"{error_send_type}:{error_msg}") 
             else: # If not sending to app or not connected, always print error to console
                 print(f"\n--- HDC Command Error ({' '.join(hdc_shell_cmd_args)}) ---\n{error_msg}\n-----------------------------------\n")
@@ -920,7 +928,7 @@ class HarmonyOSClientConsole:
                 ("apps_list",        "-3"),
                 ("app_info",         "com.example.target"),
                 ("app_surface",      "com.example.target"),
-                ("apps_visible_abilities", ""),
+                ("apps_exported_activities", ""),
                 ("app_ability",      "com.example.target .MainActivity"),
                 ("app_ability_want", "com.example.target .LoginActivity username=admin"),
                 ("app_deeplink",     "myapp://admin/panel"),
@@ -1104,6 +1112,11 @@ class HarmonyOSClientConsole:
     _execute_and_handle_hdc_command = _run_shell_and_dispatch
 
 
+# Backwards-compat alias — older HarmonyOS command docstrings reference the
+# previous class name.  New code should use Harm0nyz3rConsole.
+HarmonyOSClientConsole = Harm0nyz3rConsole
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Harm0nyz3r — Multi-platform App Security Companion"
@@ -1130,7 +1143,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    client_console = HarmonyOSClientConsole(
+    client_console = Harm0nyz3rConsole(
         host=args.host,
         port=args.port,
         buffer_size=BUFFER_SIZE,

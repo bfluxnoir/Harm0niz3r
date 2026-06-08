@@ -38,7 +38,7 @@ class Command(ABC):
         """
         Execute the command.
 
-        console: HarmonyOSClientConsole instance (for logging, HDC, socket,…)
+        console: Harm0nyz3rConsole instance (for logging, bridge tool, socket,…)
         args:    list of string args (no command name, '--log' already stripped)
         source:  'cli' or 'app'
         """

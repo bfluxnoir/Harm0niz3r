@@ -20,8 +20,9 @@ class AndroidAgentExecCommand(Command):
     in-process than they do through 'adb'.
 
     Agent-supported commands: apps_list, app_info, app_surface,
-    apps_visible_abilities, app_ability, app_ability_want, app_ability_fuzz,
-    app_broadcast, app_deeplink, app_permissions, app_provider, shell_exec.
+    apps_exported_activities (alias: apps_visible_abilities), app_ability,
+    app_ability_want, app_ability_fuzz, app_broadcast, app_deeplink,
+    app_permissions, app_provider, shell_exec.
     """
 
     @property

@@ -1,4 +1,4 @@
-# commands/android/apps_visible_abilities.py
+# commands/android/apps_exported_activities.py
 import json
 from typing import List
 
@@ -69,14 +69,25 @@ def _extract_exported_activities(console, send_to_app: bool = False) -> None:
         console._print_message("INFO", f"Sent {len(exported_activities)} activities to agent.")
 
 
-class AndroidAppsVisibleAbilitiesCommand(Command):
+class AndroidAppsExportedActivitiesCommand(Command):
+    """
+    Android-specific: list exported Activities with no required permission.
+    The previous name 'apps_visible_abilities' is kept as an alias for users
+    coming from the HarmonyOS side of the tool.
+    """
+
     @property
     def name(self) -> str:
-        return "apps_visible_abilities"
+        return "apps_exported_activities"
+
+    @property
+    def aliases(self) -> List[str]:
+        # Keep the HarmonyOS-flavoured name working for muscle memory.
+        return ["apps_visible_abilities"]
 
     def help(self) -> str:
         return (
-            "apps_visible_abilities [-a]\n"
+            "apps_exported_activities [-a]   (alias: apps_visible_abilities)\n"
             "  List exported Activities with no permission requirement.\n"
             "  Scans all third-party packages via 'pm dump'. May take a while.\n"
             "  -a  Send results to the Android agent."
@@ -89,7 +100,7 @@ class AndroidAppsVisibleAbilitiesCommand(Command):
             args = [a for a in args if a != "-a"]
 
         if args:
-            console._print_message("INFO", "Usage: apps_visible_abilities [-a]")
+            console._print_message("INFO", "Usage: apps_exported_activities [-a]")
             return
 
         if send_to_app and not console.connected:
@@ -100,4 +111,4 @@ class AndroidAppsVisibleAbilitiesCommand(Command):
 
 
 def register(registry_func):
-    registry_func(AndroidAppsVisibleAbilitiesCommand())
+    registry_func(AndroidAppsExportedActivitiesCommand())
