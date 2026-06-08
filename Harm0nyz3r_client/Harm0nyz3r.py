@@ -65,8 +65,10 @@ class Harm0nyz3rConsole:
         self.exec_result = None
         self._sandbox_shell_active = False
         # --- agent_exec state ---
+        # Receive loop renders agent replies itself (B1) and stores the raw
+        # decoded payload in last_agent_response after rendering completes.
+        # agent_exec polls this to know when the reply has arrived.
         self.last_agent_response = None
-        self._awaiting_agent_reply = False
         
     # ------------------------------------------------------------------
     # Command registration
@@ -257,6 +259,190 @@ class Harm0nyz3rConsole:
             "harmonyos": "HarmonyOS app",
             "android":   "Android agent",
         }.get(self.platform.name, "agent")
+
+    # ------------------------------------------------------------------
+    # B1 — pretty rendering of agent replies in the receive loop
+    # (Android only; HarmonyOS keeps the raw [APP MESSAGE] echo so its
+    # existing HDC_OUTPUT_* / UDMF_* handling stays bit-for-bit identical)
+    # ------------------------------------------------------------------
+
+    def _render_agent_reply(self, raw: str) -> bool:
+        """
+        Try to render a recognised agent reply nicely.
+
+        Returns True when the message was handled here (and the raw
+        '[APP MESSAGE] …' echo should be suppressed); False otherwise.
+        """
+        if self.platform.name != "android":
+            return False
+        msg_type, sep, payload = raw.partition(":")
+        if not sep:
+            return False
+        payload = payload.strip()
+
+        renderers = {
+            "ERROR_RESULT":               self._render_error,
+            "EXEC_RESULT":                self._render_exec,
+            "APPS_LIST_RESULT":           self._render_apps_list,
+            "APP_INFO_RESULT":            self._render_app_info,
+            "APP_SURFACE_RESULT":         self._render_app_surface,
+            "EXPORTED_ACTIVITIES_RESULT": self._render_exported_activities,
+            "APP_PERMISSIONS_RESULT":     self._render_app_permissions,
+            "PROVIDER_QUERY_RESULT":      self._render_provider_query,
+        }
+        handler = renderers.get(msg_type)
+        if handler is None:
+            return False
+        try:
+            handler(payload)
+        except Exception as e:
+            # Fall back to raw echo on any rendering error rather than dropping the message
+            self._print_message("WARNING", f"Failed to render {msg_type}: {e}")
+            return False
+        return True
+
+    def _try_json(self, payload: str):
+        """Parse JSON payload; return decoded value or None on failure."""
+        try:
+            return json.loads(payload)
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+    @staticmethod
+    def _pick_permissions(obj: dict) -> list:
+        """
+        Read the requested-permissions list from an agent JSON reply.
+
+        The field was renamed from 'requiredAppPermissions' to
+        'requestedAppPermissions' in commit 339fcd2 (A11).  Accept either
+        spelling so a freshly-updated client keeps rendering correctly
+        against an on-device APK built before that rename.
+        """
+        return (
+            obj.get("requestedAppPermissions")
+            or obj.get("requiredAppPermissions")
+            or []
+        )
+
+    def _render_error(self, payload: str) -> None:
+        self._print_message("ERROR", f"Agent error: {payload}")
+
+    def _render_exec(self, payload: str) -> None:
+        # shell_exec.py (HarmonyOS) and any future Android consumer poll
+        # self.exec_result.  Don't echo here when the sandbox shell is active.
+        if not self._sandbox_shell_active:
+            self._print_message("SUCCESS", f"Agent: {payload}")
+
+    def _render_apps_list(self, payload: str) -> None:
+        names = self._try_json(payload)
+        if not isinstance(names, list):
+            self._print_message("INFO", f"[APPS_LIST_RESULT] {payload}")
+            return
+        print(f"\n--- Installed Packages ({len(names)}) ---")
+        for name in sorted(names):
+            print(f"  {name}")
+        print("--------------------------------------------\n")
+
+    def _render_app_info(self, payload: str) -> None:
+        obj = self._try_json(payload)
+        if not isinstance(obj, dict):
+            self._print_message("INFO", f"[APP_INFO_RESULT] {payload}")
+            return
+        pkg = obj.get("packageName", "UNKNOWN")
+        print(f"\n--- App Info: {pkg} ---")
+        print(f"  Version    : {obj.get('versionName')} (code {obj.get('versionCode')})")
+        print(f"  Target SDK : {obj.get('targetSdk')}   Min SDK: {obj.get('minSdk')}")
+        print(f"  Debug      : {obj.get('debugMode')}")
+        print(f"  System App : {obj.get('systemApp')}")
+        perms = self._pick_permissions(obj)
+        print(f"  Permissions: {len(perms)}")
+        for p in perms:
+            print(f"    - {p}")
+        print("----------------------------\n")
+
+    def _render_app_surface(self, payload: str) -> None:
+        obj = self._try_json(payload)
+        if not isinstance(obj, dict):
+            self._print_message("INFO", f"[APP_SURFACE_RESULT] {payload}")
+            return
+        pkg = obj.get("packageName", "UNKNOWN")
+        comps = obj.get("exposedComponents", [])
+        print(f"\n--- App Surface: {pkg} ({len(comps)} exported components) ---")
+        for comp in comps:
+            ctype = comp.get("type", "?")
+            name = comp.get("name", "?")
+            visible = comp.get("visible", False)
+            perms = comp.get("permissionsRequired", [])
+            skills = comp.get("skills", [])
+            authority = comp.get("authority")
+            print(f"\n  [{ctype}] {name}")
+            print(f"    Exported    : {visible}")
+            print(f"    Permission  : {', '.join(perms) if perms else '(none)'}")
+            if authority:
+                print(f"    Authority   : {authority}")
+            if skills:
+                print("    Intent Filters:")
+                for s in skills:
+                    kv = " ".join(f"{k}={v}" for k, v in s.items() if v)
+                    print(f"      - {kv}")
+            else:
+                print("    Intent Filters: (none)")
+        print("----------------------------------------------\n")
+
+    def _render_exported_activities(self, payload: str) -> None:
+        arr = self._try_json(payload)
+        if not isinstance(arr, list):
+            self._print_message("INFO", f"[EXPORTED_ACTIVITIES_RESULT] {payload}")
+            return
+        print(f"\n=== Exported Activities (no permission guard) — {len(arr)} ===")
+        for item in arr:
+            print(f"\n  App     : {item.get('app')}")
+            print(f"  Activity: {item.get('activity')}")
+            skills = item.get("skills", [])
+            if skills:
+                print("  Intent Filters:")
+                for s in skills:
+                    kv = " ".join(f"{k}={v}" for k, v in s.items() if v)
+                    print(f"    - {kv}")
+        print("======================================================\n")
+
+    def _render_app_permissions(self, payload: str) -> None:
+        obj = self._try_json(payload)
+        if not isinstance(obj, dict):
+            self._print_message("INFO", f"[APP_PERMISSIONS_RESULT] {payload}")
+            return
+        pkg = obj.get("packageName", "UNKNOWN")
+        requested = self._pick_permissions(obj)
+        granted = set(obj.get("grantedPermissions", []))
+        filt = "dangerous-only" if obj.get("dangerousOnly") else "all"
+        print(f"\n--- Permissions: {pkg}  ({filt}) ---")
+        print(f"  Debug Mode : {obj.get('debugMode')}")
+        print(f"  System App : {obj.get('systemApp')}")
+        print(f"\n  Requested ({len(requested)}):")
+        for p in sorted(requested):
+            tag = " (granted)" if p in granted else ""
+            print(f"    {p}{tag}")
+        not_granted = [p for p in requested if p not in granted]
+        if not_granted:
+            print(f"\n  NOT Granted ({len(not_granted)}):")
+            for p in sorted(not_granted):
+                print(f"    {p}")
+        print("------------------------------------\n")
+
+    def _render_provider_query(self, payload: str) -> None:
+        obj = self._try_json(payload)
+        if not isinstance(obj, dict):
+            self._print_message("INFO", f"[PROVIDER_QUERY_RESULT] {payload}")
+            return
+        uri = obj.get("uri", "N/A")
+        rows = obj.get("rows", [])
+        print(f"\n--- Provider Query: {uri} ({len(rows)} rows) ---")
+        if not rows:
+            print("  (no rows returned — provider may require permissions or be empty)")
+        else:
+            for row in rows:
+                print(f"  {row}")
+        print("---------------------------------------------\n")
 
     def _print_message(self, level, message):
         """Print a coloured, platform-aware console message.
@@ -559,16 +745,25 @@ class Harm0nyz3rConsole:
                     break 
                 
                 decoded_data = data.decode('utf-8').strip()
-                # Capture the latest agent message so synchronous commands
-                # (e.g. agent_exec) can wait for and consume the reply.
-                self.last_agent_response = decoded_data
 
                 # If the main input loop is active, clear the line, print, then redraw prompt
                 if self._input_active:
                     sys.stdout.write('\r' + ' ' * (len(self._current_prompt_text) + self.buffer_size) + '\r')
                     sys.stdout.flush()
-                if not self._sandbox_shell_active and not self._awaiting_agent_reply:
-                    self._print_message("INFO", f"[APP MESSAGE] {decoded_data}") # Print received data with clear tag
+
+                # B1: try to render a recognised agent reply; fall back to the
+                # raw '[APP MESSAGE] …' echo when no renderer matches.  Done
+                # before updating last_agent_response so synchronous callers
+                # (agent_exec) only unblock after the rendered output is on
+                # screen — avoids the prompt redrawing in the middle of it.
+                if not self._sandbox_shell_active:
+                    rendered = self._render_agent_reply(decoded_data)
+                    if not rendered:
+                        self._print_message("INFO", f"[APP MESSAGE] {decoded_data}")
+
+                # Capture the latest agent message so synchronous commands
+                # (e.g. agent_exec) can wait for and consume the reply.
+                self.last_agent_response = decoded_data
                 if decoded_data.startswith("EXEC_RESULT:"):
                     # The shell_exec command is waiting on this
                     self.exec_result = decoded_data[len("EXEC_RESULT:") :].strip()
