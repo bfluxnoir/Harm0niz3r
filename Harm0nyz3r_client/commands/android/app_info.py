@@ -40,13 +40,13 @@ class AndroidAppInfoCommand(Command):
         if retcode != 0 or not stdout:
             console._print_message("ERROR", f"pm dump failed: {stderr or 'no output'}")
             if send_to_app and console.connected:
-                console.send_data_to_app(f"HDC_OUTPUT_ERROR:pm dump failed for {package}")
+                console.send_data_to_app(f"ERROR_RESULT:pm dump failed for {package}")
             return
 
         parsed = parse_pm_dump(stdout, package)
 
         if send_to_app and console.connected:
-            console.send_data_to_app(f"HDC_OUTPUT_APP_DETAILS:{json.dumps(parsed)}")
+            console.send_data_to_app(f"APP_INFO_RESULT:{json.dumps(parsed)}")
         else:
             print(f"\n--- App Info: {package} ---")
             print(f"  Version    : {parsed.get('versionName')} (code {parsed.get('versionCode')})")

@@ -109,7 +109,7 @@ class AndroidAgentExecCommand(Command):
             return
 
         payload = payload.strip()
-        if msg_type == "HDC_OUTPUT_ERROR":
+        if msg_type == "ERROR_RESULT":
             console._print_message("ERROR", f"Agent error: {payload}")
             return
 

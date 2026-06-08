@@ -63,7 +63,7 @@ def _extract_exported_activities(console, send_to_app: bool = False) -> None:
 
     if send_to_app and console.connected:
         console.send_data_to_app(
-            "HDC_OUTPUT_EXPOSED_ABILITIES:"
+            "EXPORTED_ACTIVITIES_RESULT:"
             + json.dumps(exported_activities, ensure_ascii=False)
         )
         console._print_message("INFO", f"Sent {len(exported_activities)} activities to agent.")

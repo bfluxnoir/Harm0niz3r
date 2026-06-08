@@ -55,7 +55,7 @@ class AndroidAppsListCommand(Command):
 
         if send_to_app and console.connected:
             payload = json.dumps([p["packageName"] for p in packages])
-            console.send_data_to_app(f"HDC_OUTPUT_ALL_APPS:{payload}")
+            console.send_data_to_app(f"APPS_LIST_RESULT:{payload}")
             console._print_message("INFO", f"Sent {len(packages)} packages to agent.")
         else:
             print(f"\n--- Installed Packages ({len(packages)}) ---")

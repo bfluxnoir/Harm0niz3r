@@ -79,13 +79,13 @@ class AndroidAppSurfaceCommand(Command):
             err = stderr or "no output"
             console._print_message("ERROR", f"pm dump failed: {err}")
             if send_to_app and console.connected:
-                console.send_data_to_app(f"HDC_OUTPUT_ERROR:{err}")
+                console.send_data_to_app(f"ERROR_RESULT:{err}")
             return
 
         parsed = parse_app_surface(stdout, package)
 
         if send_to_app and console.connected:
-            console.send_data_to_app(f"HDC_OUTPUT_APP_SURFACE_JSON:{json.dumps(parsed)}")
+            console.send_data_to_app(f"APP_SURFACE_RESULT:{json.dumps(parsed)}")
             console._print_message("INFO", f"App surface sent to agent for {package}.")
         else:
             print(f"\n{format_app_surface_for_console(parsed)}\n")

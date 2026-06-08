@@ -52,16 +52,16 @@ private val DANGEROUS_PERMISSIONS = setOf(
  *
  * Supported commands
  * ------------------
- * apps_list                            → HDC_OUTPUT_ALL_APPS:<json array of package names>
- * app_surface <package>                → HDC_OUTPUT_APP_SURFACE_JSON:<json>
- * app_info <package>                   → HDC_OUTPUT_APP_DETAILS:<json>
- * apps_exported_activities             → HDC_OUTPUT_EXPOSED_ABILITIES:<json>  (alias: apps_visible_abilities)
+ * apps_list                            → APPS_LIST_RESULT:<json array of package names>
+ * app_surface <package>                → APP_SURFACE_RESULT:<json>
+ * app_info <package>                   → APP_INFO_RESULT:<json>
+ * apps_exported_activities             → EXPORTED_ACTIVITIES_RESULT:<json>  (alias: apps_visible_abilities)
  * app_ability <pkg> <activity>         → EXEC_RESULT:<msg>
  * app_ability_want <pkg> <act> [k=v..] → EXEC_RESULT:<msg>  (Intent extras)
  * app_ability_fuzz <pkg> <act> [..]    → EXEC_RESULT:<summary>  (fuzzed Intent extras)
  * app_broadcast <action> [-n c] [k=v..]→ EXEC_RESULT:<msg>
  * app_deeplink <uri> [-n c]            → EXEC_RESULT:<msg>
- * app_permissions <package> [--dangerous] → HDC_OUTPUT_APP_PERMISSIONS:<json>
+ * app_permissions <package> [--dangerous] → APP_PERMISSIONS_RESULT:<json>
  * shell_exec <cmd>                     → EXEC_RESULT:<output>
  * app_provider <authority> projection  → PROVIDER_QUERY_RESULT:<json>
  *
@@ -119,7 +119,7 @@ class CommandHandler(private val context: Context) {
         val packages = pm.getInstalledPackages(flags.toInt())
         val arr = JSONArray()
         packages.forEach { arr.put(it.packageName) }
-        send(writer, "HDC_OUTPUT_ALL_APPS", arr.toString())
+        send(writer, "APPS_LIST_RESULT", arr.toString())
     }
 
     // ------------------------------------------------------------------
@@ -169,7 +169,7 @@ class CommandHandler(private val context: Context) {
         }
 
         obj.put("exposedComponents", components)
-        send(writer, "HDC_OUTPUT_APP_SURFACE_JSON", obj.toString())
+        send(writer, "APP_SURFACE_RESULT", obj.toString())
     }
 
     private fun buildComponent(
@@ -208,7 +208,7 @@ class CommandHandler(private val context: Context) {
         val perms = JSONArray()
         info.requestedPermissions?.forEach { perms.put(it) }
         obj.put("requiredAppPermissions", perms)
-        send(writer, "HDC_OUTPUT_APP_DETAILS", obj.toString())
+        send(writer, "APP_INFO_RESULT", obj.toString())
     }
 
     // ------------------------------------------------------------------
@@ -229,7 +229,7 @@ class CommandHandler(private val context: Context) {
                 result.put(entry)
             }
         }
-        send(writer, "HDC_OUTPUT_EXPOSED_ABILITIES", result.toString())
+        send(writer, "EXPORTED_ACTIVITIES_RESULT", result.toString())
     }
 
     // ------------------------------------------------------------------
@@ -476,7 +476,7 @@ class CommandHandler(private val context: Context) {
         obj.put("dangerousOnly", dangerousOnly)
         obj.put("requiredAppPermissions", requested)
         obj.put("grantedPermissions", granted)
-        send(writer, "HDC_OUTPUT_APP_PERMISSIONS", obj.toString())
+        send(writer, "APP_PERMISSIONS_RESULT", obj.toString())
     }
 
     // ------------------------------------------------------------------
@@ -595,6 +595,6 @@ class CommandHandler(private val context: Context) {
 
     private fun sendError(writer: PrintWriter, message: String) {
         Log.w(TAG, "Error: $message")
-        send(writer, "HDC_OUTPUT_ERROR", message)
+        send(writer, "ERROR_RESULT", message)
     }
 }
