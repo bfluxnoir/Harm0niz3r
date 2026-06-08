@@ -9,10 +9,12 @@
  ==========================================================
 
 TODO:
-    - Stablish a receiving limit in client to avoid buffer overflow flaw when receiving data.
-    - Add support for ' \n\n' ending trail when client -> server communication.
     - Fix invoke with params (design must be done before).
     - Add support to call invoke_with_want functionality from CLI.
+
+Resolved:
+    - Buffer-overflow guard on receive — capped at _max_recv_buffer (B3).
+    - ' \n\n' framing on the client receive side (B3).
 """
 
 import socket
@@ -69,6 +71,14 @@ class Harm0nyz3rConsole:
         # decoded payload in last_agent_response after rendering completes.
         # agent_exec polls this to know when the reply has arrived.
         self.last_agent_response = None
+        # --- receive-loop framing buffer (B3) ---
+        # Both agents frame messages with ' \n\n' (space + LF + LF).  The loop
+        # accumulates raw bytes here and splits on the terminator, so large
+        # replies (e.g. apps_list on a device with 300+ packages) are no
+        # longer chopped up or lost when they exceed buffer_size.
+        self._recv_buffer = b""
+        # Hard cap to recover from a peer that never sends the terminator.
+        self._max_recv_buffer = 1024 * 1024
         
     # ------------------------------------------------------------------
     # Command registration
@@ -731,98 +741,152 @@ class Harm0nyz3rConsole:
             self._cleanup_socket()
             return False
 
+    # Framing terminator both agents emit at the end of every message.
+    _FRAME_TERMINATOR = b" \n\n"
+
+    def _extract_frames(self) -> list:
+        """
+        Pull every complete frame currently in self._recv_buffer.
+
+        Each frame's bytes are everything before the ' \n\n' terminator.  The
+        terminator itself is consumed.  Any trailing bytes that don't yet form
+        a complete frame stay in the buffer for the next recv().
+        """
+        frames = []
+        term = self._FRAME_TERMINATOR
+        while True:
+            idx = self._recv_buffer.find(term)
+            if idx < 0:
+                break
+            frames.append(self._recv_buffer[:idx])
+            self._recv_buffer = self._recv_buffer[idx + len(term):]
+        return frames
+
+    def _process_decoded_frame(self, decoded_data: str) -> None:
+        """Handle one fully-framed, decoded message from the agent."""
+        if not decoded_data:
+            return
+
+        # B1: try to render a recognised agent reply; fall back to the raw
+        # '[APP MESSAGE] …' echo when no renderer matches.  Done before
+        # updating last_agent_response so synchronous callers (agent_exec)
+        # only unblock after the rendered output is on screen — avoids the
+        # prompt redrawing in the middle of it.
+        if not self._sandbox_shell_active:
+            rendered = self._render_agent_reply(decoded_data)
+            if not rendered:
+                self._print_message("INFO", f"[APP MESSAGE] {decoded_data}")
+
+        # Capture the latest agent message so synchronous commands (e.g.
+        # agent_exec) can wait for and consume the reply.
+        self.last_agent_response = decoded_data
+        if decoded_data.startswith("EXEC_RESULT:"):
+            # The shell_exec command is waiting on this
+            self.exec_result = decoded_data[len("EXEC_RESULT:"):].strip()
+
+        # --- COMMAND_REQUEST from the on-device agent (HarmonyOS GUI flow) ---
+        if decoded_data.startswith('COMMAND_REQUEST:'):
+            command_payload = decoded_data[len('COMMAND_REQUEST:'):].strip()
+            self._print_message("INFO", f"Received command request from app: '{command_payload}'")
+            self._process_app_command_request(command_payload)
+
+        # --- HarmonyOS-only: UDMF_QUERY_RESULT from on-device ArkTS app ---
+        # UDMF (Unified Data Management Framework) is a HarmonyOS concept;
+        # gated so Android replies of similar shape are not mis-parsed here.
+        elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_QUERY_RESULT:'):
+            result_payload = decoded_data[len('UDMF_QUERY_RESULT:'):].strip()
+            try:
+                udmf_data = json.loads(result_payload)
+                print("\n--- UDMF Query Result ---")
+                print(f"  URI: {udmf_data.get('uri', 'N/A')}")
+                if udmf_data.get('content'):
+                    print("  Content:")
+                    for i, item in enumerate(udmf_data['content']):
+                        print(f"    {i+1}. {item}")
+                else:
+                    print("  No content found for this URI.")
+                print("-------------------------\n")
+            except json.JSONDecodeError:
+                print(f"\n--- UDMF Query Result (Raw) ---")
+                print(result_payload)
+                print("-----------------------------\n")
+        # --- HarmonyOS-only: UDMF_APPS_WITH_CONTENT from on-device ArkTS app ---
+        elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_APPS_WITH_CONTENT:'):
+            result_payload = decoded_data[len('UDMF_APPS_WITH_CONTENT:'):].strip()
+            try:
+                apps_with_content = json.loads(result_payload)
+                print("\n--- Apps with UDMF Content ---")
+                if apps_with_content:
+                    for app_info in apps_with_content:
+                        print(f"  - {app_info.get('bundleName', 'N/A')}")
+                else:
+                    print("  No applications found with UDMF content for the specified group ID.")
+                print("------------------------------\n")
+            except json.JSONDecodeError:
+                print(f"\n--- Apps with UDMF Content (Raw) ---")
+                print(result_payload)
+                print("----------------------------------\n")
+        # --- END HarmonyOS-only handlers ---
+
+        # In case the app sends JSON in the future, keep this simple check.
+        try:
+            if decoded_data.startswith('[') and decoded_data.endswith(']'):
+                parsed_json = json.loads(decoded_data)
+                print("--- JSON Response (formatted) ---")
+                print(json.dumps(parsed_json, indent=2))
+                print("-------------------------------")
+        except json.JSONDecodeError:
+            pass
+
     def _receive_loop(self):
-        """Internal method to continuously receive data from the server."""
+        """
+        Accumulate raw bytes into self._recv_buffer and dispatch each complete
+        ' \n\n'-terminated frame.  Fixes the open TODO: a single recv() of up
+        to buffer_size bytes is no longer assumed to be a complete message,
+        so large replies (apps_list, app_surface) round-trip intact.
+        """
         self._print_message("DEBUG", "Asynchronous receive loop started in background.")
         while self._receive_thread_running and self.connected:
             try:
-                data = self.socket.recv(self.buffer_size)
-                if not data:
+                chunk = self.socket.recv(self.buffer_size)
+                if not chunk:
                     self._print_message("INFO", "Server disconnected gracefully (received no data).")
                     self.connected = False
                     self._receive_thread_running = False
                     self._cleanup_socket()
-                    break 
-                
-                decoded_data = data.decode('utf-8').strip()
+                    break
 
-                # If the main input loop is active, clear the line, print, then redraw prompt
+                self._recv_buffer += chunk
+
+                # Recover from a peer that never terminates a frame.
+                if len(self._recv_buffer) > self._max_recv_buffer:
+                    self._print_message(
+                        "WARNING",
+                        f"Receive buffer exceeded {self._max_recv_buffer} bytes with "
+                        "no framing terminator; dropping accumulated data to recover."
+                    )
+                    self._recv_buffer = b""
+                    continue
+
+                frames = self._extract_frames()
+                if not frames:
+                    continue
+
+                # Clear the prompt once before the batch and redraw once after,
+                # so multiple replies arriving in a single recv() don't flicker.
                 if self._input_active:
-                    sys.stdout.write('\r' + ' ' * (len(self._current_prompt_text) + self.buffer_size) + '\r')
+                    sys.stdout.write(
+                        '\r' + ' ' * (len(self._current_prompt_text) + self.buffer_size) + '\r'
+                    )
                     sys.stdout.flush()
 
-                # B1: try to render a recognised agent reply; fall back to the
-                # raw '[APP MESSAGE] …' echo when no renderer matches.  Done
-                # before updating last_agent_response so synchronous callers
-                # (agent_exec) only unblock after the rendered output is on
-                # screen — avoids the prompt redrawing in the middle of it.
-                if not self._sandbox_shell_active:
-                    rendered = self._render_agent_reply(decoded_data)
-                    if not rendered:
-                        self._print_message("INFO", f"[APP MESSAGE] {decoded_data}")
-
-                # Capture the latest agent message so synchronous commands
-                # (e.g. agent_exec) can wait for and consume the reply.
-                self.last_agent_response = decoded_data
-                if decoded_data.startswith("EXEC_RESULT:"):
-                    # The shell_exec command is waiting on this
-                    self.exec_result = decoded_data[len("EXEC_RESULT:") :].strip()
-                # --- NEW: Handle COMMAND_REQUEST from HarmonyOS App ---
-                if decoded_data.startswith('COMMAND_REQUEST:'):
-                    command_payload = decoded_data[len('COMMAND_REQUEST:'):].strip()
-                    self._print_message("INFO", f"Received command request from app: '{command_payload}'")
-                    # Parse and execute the command from the app
-                    self._process_app_command_request(command_payload)
-                
-                # --- END NEW ---
-
-                # --- HarmonyOS-only: UDMF_QUERY_RESULT from on-device ArkTS app ---
-                # UDMF (Unified Data Management Framework) is a HarmonyOS concept;
-                # gated so Android replies of similar shape are not mis-parsed here.
-                elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_QUERY_RESULT:'):
-                    result_payload = decoded_data[len('UDMF_QUERY_RESULT:'):].strip()
+                for raw_frame in frames:
                     try:
-                        udmf_data = json.loads(result_payload)
-                        print("\n--- UDMF Query Result ---")
-                        print(f"  URI: {udmf_data.get('uri', 'N/A')}")
-                        if udmf_data.get('content'):
-                            print("  Content:")
-                            for i, item in enumerate(udmf_data['content']):
-                                print(f"    {i+1}. {item}")
-                        else:
-                            print("  No content found for this URI.")
-                        print("-------------------------\n")
-                    except json.JSONDecodeError:
-                        print(f"\n--- UDMF Query Result (Raw) ---")
-                        print(result_payload)
-                        print("-----------------------------\n")
-                # --- HarmonyOS-only: UDMF_APPS_WITH_CONTENT from on-device ArkTS app ---
-                elif self.platform.name == "harmonyos" and decoded_data.startswith('UDMF_APPS_WITH_CONTENT:'):
-                    result_payload = decoded_data[len('UDMF_APPS_WITH_CONTENT:'):].strip()
-                    try:
-                        apps_with_content = json.loads(result_payload)
-                        print("\n--- Apps with UDMF Content ---")
-                        if apps_with_content:
-                            for app_info in apps_with_content:
-                                print(f"  - {app_info.get('bundleName', 'N/A')}")
-                        else:
-                            print("  No applications found with UDMF content for the specified group ID.")
-                        print("------------------------------\n")
-                    except json.JSONDecodeError:
-                        print(f"\n--- Apps with UDMF Content (Raw) ---")
-                        print(result_payload)
-                        print("----------------------------------\n")
-                # --- END HarmonyOS-only handlers ---
-
-                # In case the app sends JSON in the future, keep this simple check.
-                try:
-                    if decoded_data.startswith('[') and decoded_data.endswith(']'): # Expecting JSON array
-                        parsed_json = json.loads(decoded_data)
-                        print("--- JSON Response (formatted) ---")
-                        print(json.dumps(parsed_json, indent=2))
-                        print("-------------------------------")
-                except json.JSONDecodeError:
-                    pass
+                        decoded_data = raw_frame.decode('utf-8').strip()
+                    except UnicodeDecodeError as e:
+                        self._print_message("WARNING", f"Discarding non-UTF-8 frame: {e}")
+                        continue
+                    self._process_decoded_frame(decoded_data)
 
                 if self._input_active:
                     sys.stdout.write(self._current_prompt_text)
@@ -833,11 +897,11 @@ class Harm0nyz3rConsole:
                 self.connected = False
                 self._receive_thread_running = False
                 self._cleanup_socket()
-                break 
+                break
             except socket.timeout:
-                pass # Timeout on receive is okay, means no data for now
+                pass  # Timeout on recv is okay, means no data for now
             except Exception as e:
-                if self.connected: 
+                if self.connected:
                     self._print_message("ERROR", f"Error receiving data in receive loop: {e}")
                 self.connected = False
                 self._receive_thread_running = False
