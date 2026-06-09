@@ -188,6 +188,7 @@ When running with `--platform android` the following commands are available:
 | `app_sqlite_inspect <path> [--sample N] [--json]` | Walk a directory for `*.db`/`*.sqlite` files; list tables, columns, row counts; optional sample rows |
 | `app_native_audit <path> [--json]` | ELF hardening audit (PIE / NX / RELRO / stack canary / FORTIFY) over `.so` files in an APK, directory or single binary |
 | `proxy_setup [--status] [--proxy IP:PORT \| --clear] [--ca cert.pem [--system] [--hash-name HEX]]` | Manage global HTTP proxy and (root) install a CA into `/system/etc/security/cacerts/`. Subject hash via openssl or `--hash-name`. |
+| `app_backup <package> [--out FILE] [--apk] [--obb] [--shared] [--extract DIR \| --tar-only]` | Run `adb backup`, then optionally convert `.ab` → `.tar` and unpack. Plain backups only in V1 (encrypted -> abe.jar hint). |
 
 ## HarmonyOS Commands
 

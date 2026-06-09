@@ -31,6 +31,7 @@ from . import (
     app_sqlite_inspect,
     app_native_audit,
     proxy_setup,
+    app_backup,
 )
 
 __all__ = [
@@ -64,4 +65,5 @@ __all__ = [
     "app_sqlite_inspect",
     "app_native_audit",
     "proxy_setup",
+    "app_backup",
 ]
