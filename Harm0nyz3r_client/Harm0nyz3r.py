@@ -1036,6 +1036,32 @@ class Harm0nyz3rConsole:
             )
             return
 
+        # B7: '--via-agent' routes the command through the on-device Kotlin agent
+        # instead of running it directly via adb.  Only meaningful on Android, and
+        # only for commands the agent's CommandHandler actually dispatches.
+        if "--via-agent" in args:
+            args = [a for a in args if a != "--via-agent"]
+            if self.platform.name != "android":
+                self._print_message(
+                    "WARNING",
+                    "'--via-agent' only applies to --platform android; running locally."
+                )
+            else:
+                from commands.android.agent_exec import (
+                    AGENT_SUPPORTED_COMMANDS,
+                    route_via_agent,
+                )
+                if command_name not in AGENT_SUPPORTED_COMMANDS:
+                    self._print_message(
+                        "WARNING",
+                        f"Command '{command_name}' is not implemented on the agent; "
+                        "running locally."
+                    )
+                else:
+                    payload = " ".join([command_name] + args)
+                    route_via_agent(self, payload)
+                    return
+
         # 1) Generic logging flag handling
         log_requested = False
         if "--log" in args:
@@ -1319,6 +1345,13 @@ class Harm0nyz3rConsole:
 
         print(f"\n{th.SECTION}  {section_title}{R}")
         print(f"{th.SEPARATOR}  {'─' * (W - 2)}{R}")
+        if is_android:
+            print(
+                f"  {th.CMD_DESC}Append {th.EX_CMD}--via-agent{R}{th.CMD_DESC} to any "
+                f"agent-supported command to route it through the on-device agent "
+                f"instead of direct adb.{R}"
+            )
+            print()
 
         for cmd in list_commands():
             help_lines = cmd.help().splitlines()

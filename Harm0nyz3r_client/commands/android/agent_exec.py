@@ -8,6 +8,75 @@ from commands.base import Command, CommandSource
 _DEFAULT_TIMEOUT = 15.0
 
 
+# ---------------------------------------------------------------------------
+# Shared helper: route any command line through the on-device agent.
+#
+# Used by:
+#   - AndroidAgentExecCommand (explicit 'agent_exec ...' verb)
+#   - Harm0nyz3rConsole.execute_command (the generic '--via-agent' flag)
+# ---------------------------------------------------------------------------
+
+def route_via_agent(console, command_line: str, timeout: float = _DEFAULT_TIMEOUT) -> None:
+    """
+    Send 'COMMAND_REQUEST:<command_line>' over the socket and wait for the
+    reply (rendered by the receive loop) or a timeout.
+
+    The receive loop is the one rendering output; this helper just owns the
+    send + synchronous wait so callers don't need to duplicate the polling
+    loop on console.last_agent_response.
+    """
+    if not console.connected:
+        console._print_message("ERROR", "Not connected to the agent (run 'connect' first).")
+        return
+
+    console.last_agent_response = None
+    console._print_message("INFO", f"Routing via agent: {command_line}")
+    if not console.send_data_to_app(f"COMMAND_REQUEST:{command_line}"):
+        console._print_message("ERROR", "Failed to send command to the agent.")
+        return
+
+    waited = 0.0
+    while (
+        console.last_agent_response is None
+        and waited < timeout
+        and console.connected
+    ):
+        time.sleep(0.1)
+        waited += 0.1
+
+    if console.last_agent_response is None:
+        console._print_message(
+            "WARNING",
+            f"No reply from agent within {timeout:.0f}s. Long-running commands "
+            "(e.g. app_ability_fuzz) may still be running; the reply will appear "
+            "in the console as soon as it arrives."
+        )
+        return
+
+    # Reply has already been rendered by the receive loop -- just free the slot.
+    console.last_agent_response = None
+
+
+# The set of commands the Kotlin agent's CommandHandler currently dispatches.
+# Used by Harm0nyz3rConsole.execute_command to decide whether '--via-agent' is
+# meaningful for a given command.
+AGENT_SUPPORTED_COMMANDS = frozenset({
+    "apps_list",
+    "app_info",
+    "app_surface",
+    "apps_exported_activities",
+    "apps_visible_abilities",  # CLI alias of apps_exported_activities
+    "app_ability",
+    "app_ability_want",
+    "app_ability_fuzz",
+    "app_broadcast",
+    "app_deeplink",
+    "app_permissions",
+    "app_provider",
+    "shell_exec",
+})
+
+
 class AndroidAgentExecCommand(Command):
     """
     Route a command to the on-device Kotlin agent over the socket.
@@ -70,36 +139,7 @@ class AndroidAgentExecCommand(Command):
             console._print_message("INFO", self.help())
             return
 
-        request = " ".join(args)
-        console.last_agent_response = None
-        console._print_message("INFO", f"Sending to agent: {request}")
-
-        if not console.send_data_to_app(f"COMMAND_REQUEST:{request}"):
-            console._print_message("ERROR", "Failed to send command to the agent.")
-            return
-
-        # The receive loop both renders the reply and sets last_agent_response
-        # (in that order), so polling this is enough to know rendering is done.
-        waited = 0.0
-        while (
-            console.last_agent_response is None
-            and waited < timeout
-            and console.connected
-        ):
-            time.sleep(0.1)
-            waited += 0.1
-
-        if console.last_agent_response is None:
-            console._print_message(
-                "WARNING",
-                f"No reply from agent within {timeout:.0f}s. Long-running commands "
-                "(e.g. app_ability_fuzz) may still be running; the reply will appear "
-                "in the console as soon as it arrives."
-            )
-            return
-
-        # Reply already rendered by the receive loop — clear the slot for the next call.
-        console.last_agent_response = None
+        route_via_agent(console, " ".join(args), timeout=timeout)
 
 
 def register(registry_func):
