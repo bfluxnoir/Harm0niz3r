@@ -10,6 +10,7 @@ _EXPECTED_PRESETS = {
     "root_bypass",
     "biometric_bypass",
     "intent_spy",
+    "http_capture",
 }
 
 
