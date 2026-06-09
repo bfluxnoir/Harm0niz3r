@@ -224,14 +224,25 @@ def _parse_components(dump_output: str, package_name: str) -> list:
 
 def _parse_intent_filters(block: str) -> list:
     """
-    Extract intent filters from a component block and map them to skill dicts
-    (matching harmonyos_parser's 'skills' format):
+    Extract intent filters from a component block and map them to skill dicts.
+
+    Existing field names match the HarmonyOS-parser shape (so renderers can
+    iterate generically):
 
         {"action": str, "entity": str, "scheme": str, "type": str}
+
+    Optional deeplink-relevant fields added by B10:
+
+        {"host": str, "port": int, "path": str, "pathType": str}
+
+    `path` is the matcher value; `pathType` is one of LITERAL / PREFIX / GLOB /
+    ADVANCED_GLOB (as reported by `pm dump`'s PatternMatcher{...} encoding).
+    Categories beyond the first one (typically DEFAULT vs BROWSABLE) are kept
+    in `categories` when the filter declares more than one.
     """
     skills = []
 
-    # Each filter block starts with "IntentFilter:" or "filter"
+    # Each filter block starts with "IntentFilter:" or "filter <id>"
     filter_blocks = re.split(r"(?:IntentFilter:|filter\s+\w+)", block)
 
     for fb in filter_blocks[1:]:  # skip everything before first filter
@@ -241,13 +252,41 @@ def _parse_intent_filters(block: str) -> list:
         if action_m:
             skill["action"] = action_m.group(1)
 
-        category_m = re.search(r'Category:\s*"([^"]+)"', fb)
-        if category_m:
-            skill["entity"] = category_m.group(1)
+        categories = re.findall(r'Category:\s*"([^"]+)"', fb)
+        if categories:
+            skill["entity"] = categories[0]
+            if len(categories) > 1:
+                skill["categories"] = categories
 
         scheme_m = re.search(r'Scheme:\s*"([^"]+)"', fb)
         if scheme_m:
             skill["scheme"] = scheme_m.group(1)
+
+        # Authority lines come out of pm dump as:  Authority: "host": -1
+        #                                        or Authority: "host:port": -1
+        # The numeric tail is the *intent-filter port*, which is -1 when any
+        # port is acceptable.  Capture both host and explicit port when given.
+        authority_m = re.search(
+            r'Authority:\s*"([^"]+)"(?:\s*:\s*(-?\d+))?', fb
+        )
+        if authority_m:
+            host = authority_m.group(1)
+            skill["host"] = host
+            if authority_m.group(2):
+                p = int(authority_m.group(2))
+                if p >= 0:
+                    skill["port"] = p
+
+        # Path:    "PatternMatcher{LITERAL: /admin}"      -> type=LITERAL value=/admin
+        # Or:      "PatternMatcher{PREFIX: /foo}"
+        # Or:      "PatternMatcher{GLOB: /a/.*}"
+        # Or:      "PatternMatcher{ADVANCED_GLOB: ...}"
+        path_m = re.search(
+            r'Path:\s*"PatternMatcher\{([A-Z_]+):\s*([^}]+)\}"', fb
+        )
+        if path_m:
+            skill["pathType"] = path_m.group(1)
+            skill["path"] = path_m.group(2).strip()
 
         mime_m = re.search(r'Type:\s*"([^"]+)"', fb)
         if mime_m:

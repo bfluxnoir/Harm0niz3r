@@ -15,6 +15,7 @@ from . import (
     shell_exec,
     agent_exec,
     app_scan,
+    app_deeplinks,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "shell_exec",
     "agent_exec",
     "app_scan",
+    "app_deeplinks",
 ]
