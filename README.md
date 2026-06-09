@@ -179,6 +179,7 @@ When running with `--platform android` the following commands are available:
 | `app_pull <package> [--out DIR]` | Pull every installed APK file (base + splits) for `<package>` to the host |
 | `app_decompile <package> [--out DIR] [--jadx PATH]` | Pull APKs and decompile with `jadx`; output one sub-dir per APK |
 | `app_secrets <directory> [--json]` | Regex scan a decompiled tree for API keys, JWTs, private keys, hardcoded credentials and URLs |
+| `mastg_report <package> [--out FILE] [--json] [--secrets-dir DIR]` | Composite MASTG-aligned static report (app_scan + app_provider_probe + app_deeplinks + optional secrets), grouped by MASVS category with MSTG test IDs |
 
 ## HarmonyOS Commands
 

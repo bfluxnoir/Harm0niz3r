@@ -22,6 +22,7 @@ from . import (
     app_pull,
     app_decompile,
     app_secrets,
+    mastg_report,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "app_pull",
     "app_decompile",
     "app_secrets",
+    "mastg_report",
 ]
