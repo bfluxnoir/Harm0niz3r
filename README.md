@@ -167,6 +167,7 @@ When running with `--platform android` the following commands are available:
 | `agent_exec <cmd> [args]` | Route a command to the on-device agent instead of direct `adb` |
 | `<any cmd> --via-agent` | Generic flag: route the command through the on-device agent (same set as `agent_exec`) |
 | `app_scan <package> [--json]` | Risk-scored static security report (debuggable, allowBackup, cleartext, exported components, dangerous permissions, deeplinks) |
+| `logcat_tail <package> [--level V\|D\|I\|W\|E\|F\|S]` | Stream `adb logcat --pid=<pid>` filtered to a package, until Ctrl-C |
 
 ## HarmonyOS Commands
 
