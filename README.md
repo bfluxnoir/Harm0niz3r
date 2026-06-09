@@ -192,6 +192,7 @@ When running with `--platform android` the following commands are available:
 | `logcat_leak_scan <package> [--seconds N] [--level V\|D\|I\|W\|E\|F\|S] [--out FILE] [--json]` | Capture logcat for N seconds while the operator drives the app, then regex-scan for PII (email/IP/phone/IBAN/PAN), auth tokens (JWT/Bearer/AUTH_KEY_ASSIGN), and well-known API keys |
 | `app_deeplink_fuzz <package> [--max-per-handler N] [--json]` | Enumerate exported deeplink handlers, fire a mutational URI corpus per handler via `am start -W` (long-path, traversal, SQLi, XSS, JS / file:// / content:// schema swap, null byte, unicode), classify outcomes as ANOMALY / ERROR / REJECTED / OK |
 | `app_root_detection_scan <directory> [--json]` | Regex scan a decompiled tree for root-detection signals (RootBeer, RootTools, SafetyNet / Play Integrity, Magisk file refs, canonical `su` paths, `Build.TAGS test-keys`, `ro.debuggable` / `ro.secure`, `Runtime.exec("su")`, Magisk / SuperSU / Xposed package checks). Enumeration mode — every hit is INFO. |
+| `app_obfuscation_assessment <directory> [--json]` | Heuristic obfuscation level (NONE / LIGHT / MODERATE / HEAVY) from short-identifier %, long hex/base64 string blob count, stripped smali debug info, Kotlin `@Metadata` density. |
 
 ## HarmonyOS Commands
 
