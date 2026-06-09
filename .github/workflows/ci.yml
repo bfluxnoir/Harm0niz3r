@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-client:
+    name: Python client (py_compile + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Harm0nyz3r_client
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Byte-compile every Python module
+        run: |
+          python - <<'PY'
+          import sys, compileall
+          ok = compileall.compile_dir('.', quiet=1, force=True)
+          sys.exit(0 if ok else 1)
+          PY
+
+      - name: Run pytest
+        run: pytest tests/

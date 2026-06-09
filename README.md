@@ -1,5 +1,6 @@
 # Harm0niz3r
 
+[![CI](https://github.com/bfluxnoir/Harm0niz3r/actions/workflows/ci.yml/badge.svg)](https://github.com/bfluxnoir/Harm0niz3r/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)
 ![HarmonyOS](https://img.shields.io/badge/HarmonyOS-Next%205.0%2B-lightgrey.svg)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg)
