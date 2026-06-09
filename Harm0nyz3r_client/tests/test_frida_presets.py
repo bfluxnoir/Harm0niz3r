@@ -12,6 +12,9 @@ _EXPECTED_PRESETS = {
     "intent_spy",
     "http_capture",
     "keystore_inventory",
+    "crypto_intercept",
+    "method_trace",
+    "native_enum",
 }
 
 

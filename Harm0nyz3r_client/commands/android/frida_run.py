@@ -20,17 +20,45 @@ Usage
               currently-running PID
 """
 
+import json
 import os
 import re
 import sys
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from commands.base import Command, CommandSource
 
 
 # C19: bundled Frida script library lives next to this module.
 _PRESETS_DIR = os.path.join(os.path.dirname(__file__), "frida_presets")
+
+# E batch 1: --arg key=value pairs get injected as a 'const _args = {...}'
+# prelude prepended to the script source before it's handed to Frida.  A
+# preset can then reference _args.classPattern, _args.methodPattern, etc.
+_ARG_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _build_args_prelude(pairs: List[Tuple[str, str]]) -> str:
+    """
+    Given a list of (key, value) tuples, return a JS prelude that
+    declares 'const _args = { key: "value", ... };' suitable to be
+    prepended to a preset script.  Empty list -> empty string.
+
+    Raises ValueError on any key that isn't a valid JS identifier.
+    Values are JSON-encoded so any character can appear in them.
+    """
+    if not pairs:
+        return ""
+    parts = []
+    for k, v in pairs:
+        if not _ARG_KEY_RE.match(k):
+            raise ValueError(
+                f"--arg key {k!r} must be a JS identifier "
+                "(letters / digits / underscore, not starting with a digit)"
+            )
+        parts.append(f"  {k}: {json.dumps(v)}")
+    return "const _args = {\n" + ",\n".join(parts) + "\n};\n\n"
 
 
 def _list_preset_names() -> List[str]:
@@ -68,8 +96,8 @@ class AndroidFridaRunCommand(Command):
             ""
         )
         return (
-            "frida_run <package> <script.js> [--spawn]\n"
-            "frida_run <package> --preset <name>  [--spawn]\n"
+            "frida_run <package> <script.js> [--spawn] [--arg key=value ...]\n"
+            "frida_run <package> --preset <name>  [--spawn] [--arg key=value ...]\n"
             "frida_run --list-presets\n"
             "  Inject a Frida JavaScript file into <package> via frida-server\n"
             "  on the device.  Streams script messages until Ctrl-C, then\n"
@@ -80,6 +108,9 @@ class AndroidFridaRunCommand(Command):
             "                  MainActivity.\n"
             "  --preset NAME   Use a script bundled with Harm0niz3r instead of\n"
             "                  a local file path.\n"
+            "  --arg key=val   Inject a 'const _args = {key: val, ...}' prelude\n"
+            "                  the preset can read (repeatable).  Used by\n"
+            "                  parameterized presets like method_trace.\n"
             "  --list-presets  Print the bundled preset names and exit.\n\n"
             + preset_block +
             "Requirements:\n"
@@ -124,6 +155,33 @@ class AndroidFridaRunCommand(Command):
 
         spawn = "--spawn" in args
         args = [a for a in args if a != "--spawn"]
+
+        # --arg key=value pairs (repeatable).  Each pair becomes a field on
+        # the 'const _args = {...}' object that gets prepended to the
+        # script source before it's loaded into Frida.
+        arg_pairs: List[Tuple[str, str]] = []
+        while "--arg" in args:
+            idx = args.index("--arg")
+            if idx + 1 >= len(args):
+                console._print_message(
+                    "ERROR", "--arg requires a key=value pair after it."
+                )
+                return
+            spec = args[idx + 1]
+            if "=" not in spec:
+                console._print_message(
+                    "ERROR", f"--arg expects key=value, got {spec!r}."
+                )
+                return
+            k, _, v = spec.partition("=")
+            if not _ARG_KEY_RE.match(k):
+                console._print_message(
+                    "ERROR",
+                    f"--arg key {k!r} must be a JS identifier."
+                )
+                return
+            arg_pairs.append((k, v))
+            args = args[:idx] + args[idx + 2:]
 
         # --preset <name> resolution -- replaces the positional script path
         preset_name: Optional[str] = None
@@ -178,6 +236,20 @@ class AndroidFridaRunCommand(Command):
         except Exception as e:
             console._print_message("ERROR", f"Could not read script: {e}")
             return
+
+        # Prepend the --arg prelude (E batch 1).  When no --arg was given
+        # this is a no-op, so existing presets keep working unchanged.
+        try:
+            prelude = _build_args_prelude(arg_pairs)
+        except ValueError as e:
+            console._print_message("ERROR", str(e))
+            return
+        if prelude:
+            script_source = prelude + script_source
+            console._print_message(
+                "INFO",
+                f"Injecting {len(arg_pairs)} --arg pair(s) as 'const _args = {{...}}'"
+            )
 
         # ---- get device ----
         try:
