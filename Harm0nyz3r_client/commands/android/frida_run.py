@@ -24,9 +24,34 @@ import os
 import re
 import sys
 import time
-from typing import List
+from typing import List, Optional
 
 from commands.base import Command, CommandSource
+
+
+# C19: bundled Frida script library lives next to this module.
+_PRESETS_DIR = os.path.join(os.path.dirname(__file__), "frida_presets")
+
+
+def _list_preset_names() -> List[str]:
+    """Return all bundled preset script names (without the .js suffix)."""
+    if not os.path.isdir(_PRESETS_DIR):
+        return []
+    return sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(_PRESETS_DIR)
+        if f.endswith(".js") and os.path.isfile(os.path.join(_PRESETS_DIR, f))
+    )
+
+
+def _resolve_preset(name: str) -> Optional[str]:
+    """Return absolute path to a bundled preset, or None when not found."""
+    if not name:
+        return None
+    candidate = os.path.join(_PRESETS_DIR, name + ".js")
+    if os.path.isfile(candidate):
+        return candidate
+    return None
 
 
 class AndroidFridaRunCommand(Command):
@@ -35,26 +60,52 @@ class AndroidFridaRunCommand(Command):
         return "frida_run"
 
     def help(self) -> str:
+        presets = _list_preset_names()
+        preset_block = (
+            ("Bundled presets (use --preset <name> instead of the script path):\n  - "
+             + "\n  - ".join(presets) + "\n\n")
+            if presets else
+            ""
+        )
         return (
             "frida_run <package> <script.js> [--spawn]\n"
+            "frida_run <package> --preset <name>  [--spawn]\n"
+            "frida_run --list-presets\n"
             "  Inject a Frida JavaScript file into <package> via frida-server\n"
             "  on the device.  Streams script messages until Ctrl-C, then\n"
             "  detaches cleanly.\n"
-            "  --spawn  Spawn the app fresh (Frida spawn+resume) instead of\n"
-            "           attaching to a running PID.  Use when you need to\n"
-            "           hook init paths that run before MainActivity.\n\n"
+            "  --spawn         Spawn the app fresh (Frida spawn+resume) instead\n"
+            "                  of attaching to a running PID.  Use when you\n"
+            "                  need to hook init paths that run before\n"
+            "                  MainActivity.\n"
+            "  --preset NAME   Use a script bundled with Harm0niz3r instead of\n"
+            "                  a local file path.\n"
+            "  --list-presets  Print the bundled preset names and exit.\n\n"
+            + preset_block +
             "Requirements:\n"
             "  pip install frida-tools  (host)\n"
             "  frida-server-<ver>-android-<abi> running as root on the device\n"
             "  adb visible via 'adb devices'\n\n"
             "Examples:\n"
             "  frida_run com.example.target ./ssl_unpinning.js\n"
-            "  frida_run com.example.target ./trace.js --spawn"
+            "  frida_run com.example.target --preset ssl_pinning_bypass --spawn\n"
+            "  frida_run --list-presets"
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
         if source != "cli":
             console._print_message("WARNING", "frida_run is only available from the CLI.")
+            return
+
+        # --list-presets is purely informational and does not need frida.
+        if "--list-presets" in args:
+            presets = _list_preset_names()
+            if not presets:
+                console._print_message("INFO", "No bundled presets found.")
+            else:
+                print("Available frida_run presets:")
+                for name in presets:
+                    print(f"  - {name}")
             return
 
         # Lazy import: the rest of the Android command set works without frida.
@@ -74,14 +125,46 @@ class AndroidFridaRunCommand(Command):
         spawn = "--spawn" in args
         args = [a for a in args if a != "--spawn"]
 
-        if len(args) != 2:
-            console._print_message(
-                "INFO",
-                "Usage: frida_run <package> <script.js> [--spawn]"
-            )
-            return
+        # --preset <name> resolution -- replaces the positional script path
+        preset_name: Optional[str] = None
+        if "--preset" in args:
+            idx = args.index("--preset")
+            if idx + 1 < len(args):
+                preset_name = args[idx + 1]
+                args = args[:idx] + args[idx + 2:]
+            else:
+                console._print_message("ERROR", "--preset requires a name (try --list-presets).")
+                return
 
-        package, script_path = args
+        if preset_name is not None:
+            if len(args) != 1:
+                console._print_message(
+                    "INFO",
+                    "Usage: frida_run <package> --preset <name> [--spawn]"
+                )
+                return
+            resolved = _resolve_preset(preset_name)
+            if not resolved:
+                avail = _list_preset_names()
+                console._print_message(
+                    "ERROR",
+                    f"Unknown preset '{preset_name}'.  Available: "
+                    + (", ".join(avail) if avail else "(none)")
+                )
+                return
+            package = args[0]
+            script_path = resolved
+            console._print_message("INFO", f"Using bundled preset: {preset_name} ({script_path})")
+        else:
+            if len(args) != 2:
+                console._print_message(
+                    "INFO",
+                    "Usage: frida_run <package> <script.js> [--spawn]\n"
+                    "   or: frida_run <package> --preset <name> [--spawn]\n"
+                    "   or: frida_run --list-presets"
+                )
+                return
+            package, script_path = args
         if not re.match(r"^[a-zA-Z0-9._-]+$", package):
             console._print_message("ERROR", f"Invalid package name: {package}")
             return
