@@ -10,7 +10,7 @@ shell execution, file transfer, logging, and port forwarding.
 
 import re
 import subprocess
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .base_platform import BasePlatform
 
@@ -31,39 +31,45 @@ class AndroidPlatform(BasePlatform):
 
     def detect_device(self) -> Tuple[Optional[str], Optional[str]]:
         """
-        Runs 'adb devices -l' and returns (device_id, device_name).
-        Both are None if no device is found.
+        Runs 'adb devices -l' and returns (device_id, device_name) for the
+        first ready entry.  Both None when nothing is found.
+        """
+        all_devices = self.list_devices()
+        return all_devices[0] if all_devices else (None, None)
+
+    def list_devices(self) -> List[Tuple[str, Optional[str]]]:
+        """
+        Enumerate every adb transport currently in the 'device' state.
+
+        Note: 'adb devices -l' lists each transport separately, so a single
+        phone connected via both USB and wireless adb will appear twice (the
+        wireless serial starts with 'adb-...').  Callers that want one entry
+        per physical device should de-duplicate by model / by user choice.
 
         Example 'adb devices -l' output:
             List of devices attached
             emulator-5554          device product:sdk_gphone64_x86_64 model:sdk_gphone64_x86_64 ...
-            R58M73XXXXX            device product:dreamlte model:SM-G950F ...
+            5B181FDDW00016         device product:grizzly model:Grizzly ...
+            adb-5B181FDDW00016-... device product:grizzly model:Grizzly ...
         """
-        stdout, stderr, retcode = self.execute_bridge_command(["devices", "-l"])
-
+        stdout, _, retcode = self.execute_bridge_command(["devices", "-l"])
         if retcode != 0 or not stdout.strip():
-            return None, None
+            return []
 
-        lines = stdout.splitlines()
-        for line in lines:
-            # Skip header and empty lines
+        results: List[Tuple[str, Optional[str]]] = []
+        for line in stdout.splitlines():
             if not line.strip() or line.startswith("List of devices"):
                 continue
-
             parts = line.split()
             if len(parts) < 2:
                 continue
-
-            device_id = parts[0]
-            status = parts[1]
-
-            if status == "device":
-                # Try to extract friendly model name from 'model:XYZ'
-                model_match = re.search(r"model:(\S+)", line)
-                device_name = model_match.group(1) if model_match else device_id
-                return device_id, device_name
-
-        return None, None
+            device_id, status = parts[0], parts[1]
+            if status != "device":
+                continue
+            model_match = re.search(r"model:(\S+)", line)
+            device_name = model_match.group(1) if model_match else None
+            results.append((device_id, device_name))
+        return results
 
     # ------------------------------------------------------------------
     # Raw bridge execution

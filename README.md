@@ -64,13 +64,24 @@ python3 Harm0nyz3r.py --platform android
 
 # Custom host / port
 python3 Harm0nyz3r.py --platform android --host 127.0.0.1 --port 51337
+
+# Pin to a specific device when several are connected
+python3 Harm0nyz3r.py --platform android --device 5B181FDDW00016
+python3 Harm0nyz3r.py --platform android -s 5B181FDDW00016
 ```
 
 Available options:
 
 ```
-usage: Harm0nyz3r.py [-h] [--platform {android,harmonyos,ios}] [--host HOST] [--port PORT]
+usage: Harm0nyz3r.py [-h] [--platform {android,harmonyos,ios}]
+                     [--host HOST] [--port PORT] [--device DEVICE]
 ```
+
+`--device` (short: `-s`) matches the serial shown by `adb devices` and is forwarded to every
+adb invocation. If you have several adb transports for the same physical device (e.g. USB +
+wireless adb), passing `-s` avoids the "more than one device/emulator" trap. When omitted,
+a single device is auto-picked; multiple devices on `--platform android` trigger an
+interactive picker.
 
 The bridge tool (`hdc` for HarmonyOS, `adb` for Android) must be installed and available in `PATH`.
 

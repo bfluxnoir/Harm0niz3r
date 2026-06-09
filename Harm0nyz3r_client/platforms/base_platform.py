@@ -9,7 +9,7 @@ platform-agnostic.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 class BasePlatform(ABC):
@@ -41,6 +41,17 @@ class BasePlatform(ABC):
         Returns:
             (device_id, device_name)  – both are None when nothing is found.
         """
+
+    def list_devices(self) -> List[Tuple[str, Optional[str]]]:
+        """
+        Enumerate every ready device currently visible to the bridge tool.
+
+        Used by --device <serial> / multi-device flows.  Adapters that can
+        cheaply enumerate (adb, hdc) should override this; the default just
+        wraps `detect_device()` for adapters that can't.
+        """
+        dev_id, dev_name = self.detect_device()
+        return [(dev_id, dev_name)] if dev_id else []
 
     # ------------------------------------------------------------------
     # Raw bridge execution

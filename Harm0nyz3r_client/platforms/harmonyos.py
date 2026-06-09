@@ -6,7 +6,7 @@ HarmonyOS platform adapter — wraps the 'hdc' (Harmony Device Connector) tool.
 
 import re
 import subprocess
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .base_platform import BasePlatform
 
@@ -27,19 +27,25 @@ class HarmonyOSPlatform(BasePlatform):
 
     def detect_device(self) -> Tuple[Optional[str], Optional[str]]:
         """
-        Runs 'hdc list targets -v' and returns (device_id, device_name).
-        Both are None if no device is found.
+        Returns the first ready device from 'hdc list targets -v', or (None, None).
         """
-        stdout, stderr, retcode = self.execute_bridge_command(["list", "targets", "-v"])
+        all_devices = self.list_devices()
+        return all_devices[0] if all_devices else (None, None)
 
+    def list_devices(self) -> List[Tuple[str, Optional[str]]]:
+        """
+        Enumerate every ready device shown by 'hdc list targets -v'.
+        """
+        stdout, _, retcode = self.execute_bridge_command(["list", "targets", "-v"])
         if retcode != 0 or not stdout.strip() or "No device found" in stdout:
-            return None, None
+            return []
 
         device_line_pattern = re.compile(
             r"^\s*([\w\d.:-]+)\s+(?:USB|UART|TCP)?\s*(Connected|device|Ready)\s+.*",
             re.IGNORECASE,
         )
 
+        results: List[Tuple[str, Optional[str]]] = []
         lines = stdout.splitlines()
         for i, line in enumerate(lines):
             match = device_line_pattern.match(line)
@@ -51,9 +57,8 @@ class HarmonyOSPlatform(BasePlatform):
                     if name_match:
                         device_name = name_match.group(1)
                         break
-                return device_id, device_name or device_id
-
-        return None, None
+                results.append((device_id, device_name or device_id))
+        return results
 
     # ------------------------------------------------------------------
     # Raw bridge execution

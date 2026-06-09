@@ -43,11 +43,13 @@ class Harm0nyz3rConsole:
     Platform-specific bridge operations (hdc / adb / iproxy) are delegated to
     self.platform so that the rest of this class remains platform-agnostic.
     """
-    def __init__(self, host, port, buffer_size=4096, platform_name=DEFAULT_PLATFORM):
+    def __init__(self, host, port, buffer_size=4096, platform_name=DEFAULT_PLATFORM, device_id=None):
         self.host = host
         self.port = port
         self.buffer_size = buffer_size
         self.platform = get_platform(platform_name)
+        # B4: explicit --device override.  None = auto-detect / interactive picker.
+        self._explicit_device_id = device_id
         self.socket = None
         self.connected = False
         self.receive_thread = None
@@ -524,10 +526,58 @@ class Harm0nyz3rConsole:
         stdout, stderr, retcode = self._run_bridge(full_hdc_args)
         return stdout, stderr, retcode
 
+    def _pick_device_interactively(self, devices: list) -> tuple:
+        """
+        Multi-device + no --device override: prompt the user to pick one.
+
+        Returns the chosen (serial, name) tuple, or None if the user aborts.
+        Falls back silently to devices[0] when stdin isn't a tty (CI / pipes)
+        so non-interactive callers preserve the historical "first device"
+        behaviour without surprises.
+        """
+        if not sys.stdin.isatty():
+            self._print_message(
+                "WARNING",
+                f"Multiple {self.platform.name} devices detected and no "
+                f"--device specified; defaulting to the first ({devices[0][0]}). "
+                "Pass --device <serial> to pin explicitly."
+            )
+            return devices[0]
+
+        self._print_message(
+            "INFO",
+            f"Multiple {self.platform.name} devices detected -- pick one:"
+        )
+        for i, (serial, name) in enumerate(devices, 1):
+            label = f"{name} ({serial})" if name and name != serial else serial
+            print(f"  [{i}] {label}")
+        while True:
+            try:
+                choice = input(f"Pick (1-{len(devices)}, empty to abort): ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return None
+            if not choice:
+                return None
+            if choice.isdigit():
+                n = int(choice)
+                if 1 <= n <= len(devices):
+                    return devices[n - 1]
+            print(f"  Please enter a number 1-{len(devices)}.")
+
     def _detect_device(self):
         """
         Detects a connected device via the active platform adapter and
-        updates self.device_id / hdc_device_name / user_name_on_device.
+        updates self.device_id / self.device_name / self.user_name_on_device.
+
+        Selection priority (B4):
+          1. --device <serial> override -- errors out if not present in the
+             current device list.
+          2. Single device -> picked automatically.
+          3. Multiple devices on Android -> interactive picker (or first when
+             stdin isn't a tty).
+          4. Multiple devices on HarmonyOS -> first device with a warning
+             (HarmonyOS multi-device behaviour preserved).
         """
         self.device_id = None
         self.device_name = "No Device"
@@ -538,20 +588,49 @@ class Harm0nyz3rConsole:
             f"Detecting {self.platform.name} device via '{self.platform.bridge_command}'..."
         )
 
-        device_id, device_name = self.platform.detect_device()
-
-        if not device_id:
+        devices = self.platform.list_devices()
+        if not devices:
             self._print_message(
                 "INFO",
                 f"No {self.platform.name} devices detected via '{self.platform.bridge_command}'."
             )
             return False
 
-        self.device_id = device_id
-        self.device_name = device_name or device_id
+        chosen = None
+        if self._explicit_device_id:
+            for serial, name in devices:
+                if serial == self._explicit_device_id:
+                    chosen = (serial, name)
+                    break
+            if not chosen:
+                visible = ", ".join(s for s, _ in devices) or "(none)"
+                self._print_message(
+                    "ERROR",
+                    f"Requested device '{self._explicit_device_id}' is not "
+                    f"available.  Connected: {visible}"
+                )
+                return False
+        elif len(devices) == 1:
+            chosen = devices[0]
+        elif self.platform.name == "android":
+            chosen = self._pick_device_interactively(devices)
+            if chosen is None:
+                self._print_message("INFO", "Aborted device selection.")
+                return False
+        else:
+            # Preserve historical HarmonyOS multi-device behaviour: pick first.
+            chosen = devices[0]
+            self._print_message(
+                "WARNING",
+                f"Multiple {self.platform.name} devices detected; using the "
+                f"first ({chosen[0]}). Pass --device <serial> to pin a specific one."
+            )
+
+        self.device_id = chosen[0]
+        self.device_name = chosen[1] or chosen[0]
         self._print_message(
             "SUCCESS",
-            f"Detected {self.platform.name} device: "
+            f"Selected {self.platform.name} device: "
             f"ID='{self.device_id}', Name='{self.device_name}'"
         )
 
@@ -1477,6 +1556,16 @@ if __name__ == "__main__":
         default=PORT,
         help=f"Agent TCP port (default: {PORT})",
     )
+    parser.add_argument(
+        "--device", "-s",
+        dest="device",
+        default=None,
+        help=(
+            "Pin to a specific device serial (use the same value 'adb devices' shows). "
+            "When omitted, a single device is auto-picked and multiple devices on "
+            "--platform android trigger an interactive picker."
+        ),
+    )
     args = parser.parse_args()
 
     client_console = Harm0nyz3rConsole(
@@ -1484,5 +1573,6 @@ if __name__ == "__main__":
         port=args.port,
         buffer_size=BUFFER_SIZE,
         platform_name=args.platform,
+        device_id=args.device,
     )
     client_console.start_console()
