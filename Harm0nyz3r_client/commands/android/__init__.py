@@ -25,6 +25,8 @@ from . import (
     mastg_report,
     app_nsc_check,
     app_pinning_check,
+    app_webview_scan,
+    app_crypto_scan,
 )
 
 __all__ = [
@@ -52,4 +54,6 @@ __all__ = [
     "mastg_report",
     "app_nsc_check",
     "app_pinning_check",
+    "app_webview_scan",
+    "app_crypto_scan",
 ]

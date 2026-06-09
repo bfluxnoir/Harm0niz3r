@@ -182,6 +182,8 @@ When running with `--platform android` the following commands are available:
 | `mastg_report <package> [--out FILE] [--json] [--secrets-dir DIR]` | Composite MASTG-aligned static report (app_scan + app_provider_probe + app_deeplinks + optional secrets), grouped by MASVS category with MSTG test IDs |
 | `app_nsc_check <package>` / `--nsc-file <path>` | Audit Network Security Config: cleartext-permit, user-CA trust, debug-overrides, pin-sets. Apktool mode or pre-extracted file mode |
 | `app_pinning_check <directory>` | Scan a decompiled tree for OkHttp `CertificatePinner`, TrustKit, Appmattus CT, TrustAllCerts and `HostnameVerifier ALLOW_ALL` patterns |
+| `app_webview_scan <directory>` | Scan a decompiled tree for WebView misconfig (JS enabled, file access, JS interface, mixed-content, debugging, lax `shouldOverrideUrlLoading`) |
+| `app_crypto_scan <directory>` | Scan a decompiled tree for weak crypto (DES/RC4/3DES/Blowfish, AES ECB, MD5/SHA-1, `java.util.Random`, zero IVs, hardcoded keys, weak KeyGenerator) |
 
 ## HarmonyOS Commands
 
