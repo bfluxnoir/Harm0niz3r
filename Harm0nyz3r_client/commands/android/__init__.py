@@ -38,6 +38,8 @@ from . import (
     app_obfuscation_assessment,
     app_thirdparty_cve_scan,
     mastg_full,
+    app_dex_dump,
+    app_memory_dump,
 )
 
 __all__ = [
@@ -78,4 +80,6 @@ __all__ = [
     "app_obfuscation_assessment",
     "app_thirdparty_cve_scan",
     "mastg_full",
+    "app_dex_dump",
+    "app_memory_dump",
 ]

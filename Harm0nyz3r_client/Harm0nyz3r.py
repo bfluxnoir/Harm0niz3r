@@ -184,6 +184,8 @@ class Harm0nyz3rConsole:
             android_commands.app_obfuscation_assessment.register(register_command)
             android_commands.app_thirdparty_cve_scan.register(register_command)
             android_commands.mastg_full.register(register_command)
+            android_commands.app_dex_dump.register(register_command)
+            android_commands.app_memory_dump.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available
