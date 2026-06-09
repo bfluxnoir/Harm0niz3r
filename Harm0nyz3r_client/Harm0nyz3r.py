@@ -182,6 +182,7 @@ class Harm0nyz3rConsole:
             android_commands.app_deeplink_fuzz.register(register_command)
             android_commands.app_root_detection_scan.register(register_command)
             android_commands.app_obfuscation_assessment.register(register_command)
+            android_commands.app_thirdparty_cve_scan.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available

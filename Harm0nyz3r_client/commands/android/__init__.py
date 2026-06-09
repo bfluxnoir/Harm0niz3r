@@ -36,6 +36,7 @@ from . import (
     app_deeplink_fuzz,
     app_root_detection_scan,
     app_obfuscation_assessment,
+    app_thirdparty_cve_scan,
 )
 
 __all__ = [
@@ -74,4 +75,5 @@ __all__ = [
     "app_deeplink_fuzz",
     "app_root_detection_scan",
     "app_obfuscation_assessment",
+    "app_thirdparty_cve_scan",
 ]

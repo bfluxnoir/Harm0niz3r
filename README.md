@@ -193,6 +193,7 @@ When running with `--platform android` the following commands are available:
 | `app_deeplink_fuzz <package> [--max-per-handler N] [--json]` | Enumerate exported deeplink handlers, fire a mutational URI corpus per handler via `am start -W` (long-path, traversal, SQLi, XSS, JS / file:// / content:// schema swap, null byte, unicode), classify outcomes as ANOMALY / ERROR / REJECTED / OK |
 | `app_root_detection_scan <directory> [--json]` | Regex scan a decompiled tree for root-detection signals (RootBeer, RootTools, SafetyNet / Play Integrity, Magisk file refs, canonical `su` paths, `Build.TAGS test-keys`, `ro.debuggable` / `ro.secure`, `Runtime.exec("su")`, Magisk / SuperSU / Xposed package checks). Enumeration mode — every hit is INFO. |
 | `app_obfuscation_assessment <directory> [--json]` | Heuristic obfuscation level (NONE / LIGHT / MODERATE / HEAVY) from short-identifier %, long hex/base64 string blob count, stripped smali debug info, Kotlin `@Metadata` density. |
+| `app_thirdparty_cve_scan <directory> [--json]` | Detect well-known third-party libraries (OkHttp, Apache Commons Collections, Bouncy Castle, Jackson Databind, jsoup, SQLCipher, Volley, Realm, Glide, Picasso, Retrofit, Gson, EventBus) by class fingerprint; annotate each with known historical CVEs from a bundled JSON DB. Inventory + known-CVE annotation; manual version check is on the operator. |
 
 ## HarmonyOS Commands
 

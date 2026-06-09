@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "note": "Curated, NON-EXHAUSTIVE list of historical CVEs for libraries commonly seen in Android apps. Verify the actual library version in build.gradle / dependency tree before treating a hit as a real finding.",
+  "libraries": [
+    {
+      "name": "OkHttp 3.x",
+      "detect": "okhttp3.OkHttpClient",
+      "cves": [
+        {
+          "id": "CVE-2018-20200",
+          "fixed_in": "3.12.6",
+          "severity": "MEDIUM",
+          "summary": "Insufficient permissions on internal cache directories on Android (3.x < 3.12.6 / 4.x < 4.0.0)."
+        },
+        {
+          "id": "CVE-2021-0341",
+          "fixed_in": "4.9.2",
+          "severity": "MEDIUM",
+          "summary": "Hostname verification bypass via specific certificate constructions (3.x < 3.14.9 / 4.x < 4.9.2)."
+        }
+      ]
+    },
+    {
+      "name": "Apache Commons Collections 3.x",
+      "detect": "org.apache.commons.collections.functors.InvokerTransformer",
+      "cves": [
+        {
+          "id": "CVE-2015-7501",
+          "fixed_in": "3.2.2",
+          "severity": "HIGH",
+          "summary": "Java deserialization RCE via InvokerTransformer / TransformedMap; library lacks safe-class gating (fixed in 3.2.2)."
+        }
+      ]
+    },
+    {
+      "name": "Apache Commons Collections 4.x",
+      "detect": "org.apache.commons.collections4.functors.InvokerTransformer",
+      "cves": [
+        {
+          "id": "CVE-2015-7501",
+          "fixed_in": "4.1",
+          "severity": "HIGH",
+          "summary": "Same InvokerTransformer deserialization gadget chain; fixed in 4.1."
+        }
+      ]
+    },
+    {
+      "name": "Bouncy Castle",
+      "detect": "org.bouncycastle.jce.provider.BouncyCastleProvider",
+      "cves": [
+        {
+          "id": "CVE-2018-1000613",
+          "fixed_in": "1.60",
+          "severity": "MEDIUM",
+          "summary": "Padding oracle / decryption issue affecting Bouncy Castle versions before 1.60."
+        },
+        {
+          "id": "CVE-2020-15522",
+          "fixed_in": "1.66",
+          "severity": "MEDIUM",
+          "summary": "ECDSA timing side channel (constant-time issue) in versions before 1.66."
+        }
+      ]
+    },
+    {
+      "name": "Jackson Databind",
+      "detect": "com.fasterxml.jackson.databind.ObjectMapper",
+      "cves": [
+        {
+          "id": "CVE-2017-7525",
+          "fixed_in": "2.8.9",
+          "severity": "HIGH",
+          "summary": "Default-typing deserialization gadget chain (fixed in 2.8.9 / 2.7.9.1)."
+        },
+        {
+          "id": "CVE-2019-12384",
+          "fixed_in": "2.9.9",
+          "severity": "HIGH",
+          "summary": "Polymorphic deserialization gadget via Logback (fixed in 2.9.9 / 2.7.9.5)."
+        }
+      ]
+    },
+    {
+      "name": "jsoup",
+      "detect": "org.jsoup.Jsoup",
+      "cves": [
+        {
+          "id": "CVE-2021-37714",
+          "fixed_in": "1.14.2",
+          "severity": "MEDIUM",
+          "summary": "Uncaught exceptions when parsing malicious HTML (DoS) before 1.14.2."
+        }
+      ]
+    },
+    {
+      "name": "SQLCipher Android",
+      "detect": "net.sqlcipher.database.SQLiteDatabase",
+      "cves": [
+        {
+          "id": "CVE-2019-1010180",
+          "fixed_in": "4.2.0",
+          "severity": "MEDIUM",
+          "summary": "Out-of-bounds read in SQLCipher cryptographic context before 4.2.0."
+        }
+      ]
+    },
+    {
+      "name": "Volley (com.android.volley)",
+      "detect": "com.android.volley.RequestQueue",
+      "cves": [
+        {
+          "id": "CVE-2016-6294",
+          "fixed_in": "1.1.0",
+          "severity": "MEDIUM",
+          "summary": "Open redirect handling in HurlStack / HttpHeaderParser before 1.1.0."
+        }
+      ]
+    },
+    {
+      "name": "Realm Java",
+      "detect": "io.realm.Realm",
+      "cves": []
+    },
+    {
+      "name": "Glide",
+      "detect": "com.bumptech.glide.Glide",
+      "cves": []
+    },
+    {
+      "name": "Picasso",
+      "detect": "com.squareup.picasso.Picasso",
+      "cves": []
+    },
+    {
+      "name": "Retrofit",
+      "detect": "retrofit2.Retrofit",
+      "cves": []
+    },
+    {
+      "name": "Gson",
+      "detect": "com.google.gson.Gson",
+      "cves": []
+    },
+    {
+      "name": "EventBus",
+      "detect": "org.greenrobot.eventbus.EventBus",
+      "cves": []
+    }
+  ]
+}
