@@ -85,6 +85,11 @@ wireless adb), passing `-s` avoids the "more than one device/emulator" trap. Whe
 a single device is auto-picked; multiple devices on `--platform android` trigger an
 interactive picker.
 
+`--session-log` (optional path) writes a plain-text transcript of the whole session — banner,
+help screen, your commands, every rendered reply — to a file. With no path, defaults to
+`logs/session-<YYYYmmdd_HHMMSS>.log` in the current directory. ANSI escape codes are stripped
+from the file copy; the terminal stays colourised. Useful for pentest write-ups and audits.
+
 The bridge tool (`hdc` for HarmonyOS, `adb` for Android) must be installed and available in `PATH`.
 
 ---

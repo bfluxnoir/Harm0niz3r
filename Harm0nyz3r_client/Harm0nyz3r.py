@@ -29,6 +29,40 @@ import queue
 import argparse
 
 from config import VERSION, SERVER_HOST, PORT, BUFFER_SIZE, DEFAULT_PLATFORM, PLATFORM_CONFIGS, HARMONYZER_ASCII, get_ascii_art, get_level_label, get_theme, _RST, _DIM, _BOLD, _GREY
+
+
+# B16: tee stdout to a session-log file with ANSI escape codes stripped, so the
+# file is plain text but the terminal stays colourised.
+_ANSI_STRIP_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+class _TeeStdout:
+    """Forward every write() to both the original stdout and a sink, stripping
+    ANSI escape sequences from the sink copy."""
+
+    def __init__(self, original, sink):
+        self._original = original
+        self._sink = sink
+
+    def write(self, data):
+        self._original.write(data)
+        try:
+            self._sink.write(_ANSI_STRIP_RE.sub("", data))
+        except Exception:
+            pass  # never let logging block console output
+
+    def flush(self):
+        self._original.flush()
+        try:
+            self._sink.flush()
+        except Exception:
+            pass
+
+    def isatty(self):  # input() / readline behaviour expects this
+        return getattr(self._original, "isatty", lambda: False)()
+
+    def fileno(self):  # some libs probe this
+        return self._original.fileno()
 from platforms import get_platform, list_platforms
 from commands import register_command, get_command, list_commands
 # HarmonyOS command modules (loaded always; registered conditionally below)
@@ -43,13 +77,18 @@ class Harm0nyz3rConsole:
     Platform-specific bridge operations (hdc / adb / iproxy) are delegated to
     self.platform so that the rest of this class remains platform-agnostic.
     """
-    def __init__(self, host, port, buffer_size=4096, platform_name=DEFAULT_PLATFORM, device_id=None):
+    def __init__(self, host, port, buffer_size=4096, platform_name=DEFAULT_PLATFORM,
+                 device_id=None, session_log_path=None):
         self.host = host
         self.port = port
         self.buffer_size = buffer_size
         self.platform = get_platform(platform_name)
         # B4: explicit --device override.  None = auto-detect / interactive picker.
         self._explicit_device_id = device_id
+        # B16: optional transcript file; opened in start_console, closed on exit.
+        self._session_log_path = session_log_path
+        self._session_log_file = None
+        self._original_stdout = None
         self.socket = None
         self.connected = False
         self.receive_thread = None
@@ -1496,39 +1535,90 @@ class Harm0nyz3rConsole:
         # --------------------------------------
         self.execute_command(command, args, source=source)
 
+    def _open_session_log(self) -> None:
+        """B16: open the transcript file (if --session-log was given) and tee stdout."""
+        if not self._session_log_path:
+            return
+        try:
+            log_dir = os.path.dirname(self._session_log_path) or "."
+            if log_dir and log_dir != ".":
+                os.makedirs(log_dir, exist_ok=True)
+            self._session_log_file = open(self._session_log_path, "w", encoding="utf-8")
+            self._session_log_file.write(
+                f"# Harm0nyz3r session log\n"
+                f"# platform : {self.platform.name}\n"
+                f"# host     : {self.host}:{self.port}\n"
+                f"# started  : {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            )
+            self._session_log_file.flush()
+            self._original_stdout = sys.stdout
+            sys.stdout = _TeeStdout(self._original_stdout, self._session_log_file)
+        except Exception as e:
+            # Don't let a logging hiccup take down the console.
+            self._print_message("WARNING", f"Could not open session log: {e}")
+            self._session_log_file = None
+
+    def _close_session_log(self) -> None:
+        """Restore the original stdout and close the transcript file."""
+        if self._original_stdout is not None:
+            try:
+                sys.stdout = self._original_stdout
+            except Exception:
+                pass
+            self._original_stdout = None
+        if self._session_log_file is not None:
+            try:
+                self._session_log_file.write(
+                    f"\n# ended    : {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                )
+                self._session_log_file.flush()
+                self._session_log_file.close()
+            except Exception:
+                pass
+            self._session_log_file = None
+
     def start_console(self):
         """Starts the interactive console loop."""
-        print(get_ascii_art(self.platform.name))  # Platform-aware banner
-        self._detect_device()
-        self._update_prompt()
+        self._open_session_log()
+        try:
+            print(get_ascii_art(self.platform.name))  # Platform-aware banner
+            if self._session_log_path:
+                self._print_message(
+                    "INFO",
+                    f"Session transcript will be written to '{self._session_log_path}'."
+                )
+            self._detect_device()
+            self._update_prompt()
 
-        # Auto-connect on startup so the user doesn't have to type 'connect' manually.
-        # If the agent isn't running yet this fails silently; the user can retry with 'connect'.
-        self._print_message("INFO", f"Auto-connecting to agent at {self.host}:{self.port}...")
-        self.connect()
+            # Auto-connect on startup so the user doesn't have to type 'connect' manually.
+            # If the agent isn't running yet this fails silently; the user can retry with 'connect'.
+            self._print_message("INFO", f"Auto-connecting to agent at {self.host}:{self.port}...")
+            self.connect()
 
-        self._print_help()
+            self._print_help()
 
-        while self.running:
-            try:
-                self._input_active = True
-                command_line = input(self._current_prompt_text).strip()
-                self._input_active = False
+            while self.running:
+                try:
+                    self._input_active = True
+                    command_line = input(self._current_prompt_text).strip()
+                    self._input_active = False
 
-                self.process_command_line(command_line, source="cli")
+                    self.process_command_line(command_line, source="cli")
 
-            except KeyboardInterrupt:
-                print()  # newline
-                self._print_message("INFO", "Use 'exit' or 'quit' to leave Harm0nyz3r.")
-            except EOFError:
-                self._print_message("INFO", "EOF received. Exiting console.")
-                break
-            except Exception as e:
-                self._print_message("ERROR", f"Unexpected error in console loop: {e}")
+                except KeyboardInterrupt:
+                    print()  # newline
+                    self._print_message("INFO", "Use 'exit' or 'quit' to leave Harm0nyz3r.")
+                except EOFError:
+                    self._print_message("INFO", "EOF received. Exiting console.")
+                    break
+                except Exception as e:
+                    self._print_message("ERROR", f"Unexpected error in console loop: {e}")
 
-        # On exit, cleanup
-        self.disconnect()
-        self._print_message("INFO", "Goodbye!")
+            # On exit, cleanup
+            self.disconnect()
+            self._print_message("INFO", "Goodbye!")
+        finally:
+            self._close_session_log()
 
     # ------------------------------------------------------------------
     # Backwards-compatibility shims for the HarmonyOS command layer.
@@ -1600,7 +1690,24 @@ if __name__ == "__main__":
             "--platform android trigger an interactive picker."
         ),
     )
+    parser.add_argument(
+        "--session-log",
+        dest="session_log",
+        nargs="?",
+        const="__AUTO__",
+        default=None,
+        help=(
+            "Tee all console output to a transcript file (ANSI stripped). "
+            "Optional path; default: logs/session-<YYYYmmdd_HHMMSS>.log."
+        ),
+    )
     args = parser.parse_args()
+
+    session_log_path = args.session_log
+    if session_log_path == "__AUTO__":
+        session_log_path = os.path.join(
+            "logs", f"session-{time.strftime('%Y%m%d_%H%M%S')}.log"
+        )
 
     client_console = Harm0nyz3rConsole(
         host=args.host,
@@ -1608,5 +1715,6 @@ if __name__ == "__main__":
         buffer_size=BUFFER_SIZE,
         platform_name=args.platform,
         device_id=args.device,
+        session_log_path=session_log_path,
     )
     client_console.start_console()
