@@ -18,6 +18,7 @@ from . import (
     app_deeplinks,
     logcat_tail,
     app_provider_probe,
+    frida_run,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "app_deeplinks",
     "logcat_tail",
     "app_provider_probe",
+    "frida_run",
 ]

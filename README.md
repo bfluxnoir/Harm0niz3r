@@ -175,6 +175,7 @@ When running with `--platform android` the following commands are available:
 | `<any cmd> --via-agent` | Generic flag: route the command through the on-device agent (same set as `agent_exec`) |
 | `app_scan <package> [--json]` | Risk-scored static security report (debuggable, allowBackup, cleartext, exported components, dangerous permissions, deeplinks) |
 | `logcat_tail <package> [--level V\|D\|I\|W\|E\|F\|S]` | Stream `adb logcat --pid=<pid>` filtered to a package, until Ctrl-C |
+| `frida_run <package> <script.js> [--spawn]` | Inject a Frida JS script via on-device `frida-server`; requires `pip install frida-tools` and a running frida-server on the device |
 
 ## HarmonyOS Commands
 
