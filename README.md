@@ -163,7 +163,7 @@ When running with `--platform android` the following commands are available:
 | `apps_exported_activities` | All exported Activities with no permission guard (alias: `apps_visible_abilities`) |
 | `app_ability <pkg> <activity>` | Launch an Activity via `am start` |
 | `app_ability_want <pkg> <activity> [extras]` | Launch with structured Intent extras |
-| `app_ability_fuzz <pkg> <activity>` | Fuzz-launch an Activity with randomised extras |
+| `app_ability_fuzz <pkg> <activity> [--count N] [--delay ms] [--json] [key=value ...]` | Fuzz-launch an Activity with extended mutators (`?s` edge-pool strings, `?i/?l` boundary ints, `?f` float incl. NaN/Inf, `?u` URI scheme zoo, `?p` traversal, `?b`, `?` auto). Per-iteration ANOMALY / ERROR / OK classification with end-of-run summary. |
 | `app_broadcast <action> [-n component] [extras]` | Send a broadcast via `am broadcast` |
 | `app_deeplink <uri>` | Trigger a deep-link via `am start VIEW` |
 | `app_deeplinks <package> [--json]` | Enumerate every `VIEW` intent-filter handler with scheme/host/path and copy-paste example URIs |
