@@ -1,10 +1,13 @@
 package com.dekra.harm0niz3r
 
+import android.app.ActivityOptions
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
@@ -67,10 +70,14 @@ private val DANGEROUS_PERMISSIONS = setOf(
  * shell_exec <cmd>                     → EXEC_RESULT:<output>
  * app_provider <authority> projection  → PROVIDER_QUERY_RESULT:<json>
  *
- * Note: app_ability_want / app_ability_fuzz / app_deeplink start Activities from a
- * Service context.  Android 10+ (API 29+) background-activity-start restrictions may
- * silently block these unless the app is foreground/recently interacted with — the
- * same constraint already affects app_ability.
+ * Activity-launching commands (app_ability, app_ability_want, app_ability_fuzz,
+ * app_deeplink) go through startActivityWithBalWorkaround() which, on Android
+ * 14+ (API 34+), routes the launch through a PendingIntent with
+ * ActivityOptions.setPendingIntentBackgroundActivityStartMode(
+ *     MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+ * so background-activity-start restrictions do not silently swallow the launch.
+ * On older releases it falls back to a plain context.startActivity(), where the
+ * foreground-service status carries the launch when it can.
  */
 class CommandHandler(private val context: Context) {
 
@@ -258,7 +265,7 @@ class CommandHandler(private val context: Context) {
             setClassName(pkg, activity)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(intent)
+        startActivityWithBalWorkaround(intent)
         send(writer, "EXEC_RESULT", "Activity $activity started")
     }
 
@@ -336,7 +343,7 @@ class CommandHandler(private val context: Context) {
         applyParams(intent, args.drop(2)) { token -> token }
 
         try {
-            context.startActivity(intent)
+            startActivityWithBalWorkaround(intent)
             send(writer, "EXEC_RESULT", "Activity $activity started with Intent extras")
         } catch (e: Exception) {
             sendError(writer, "Failed to start $activity: ${e.message}")
@@ -378,7 +385,7 @@ class CommandHandler(private val context: Context) {
             }
             applyParams(intent, paramTokens) { fuzzValue(it) }
             try {
-                context.startActivity(intent)
+                startActivityWithBalWorkaround(intent)
                 ok++
             } catch (e: Exception) {
                 failed++
@@ -445,7 +452,7 @@ class CommandHandler(private val context: Context) {
         }
 
         try {
-            context.startActivity(intent)
+            startActivityWithBalWorkaround(intent)
             send(writer, "EXEC_RESULT", "Deep link triggered: $uriStr")
         } catch (e: Exception) {
             sendError(writer, "Failed to trigger deep link $uriStr: ${e.message}")
@@ -495,6 +502,50 @@ class CommandHandler(private val context: Context) {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    /**
+     * B14: launch an Activity from the (background-ish) agent process so the
+     * Android 10+ background-activity-start (BAL) gate does not silently
+     * swallow it.
+     *
+     * On Android 14+ (API 34, UPSIDE_DOWN_CAKE) we wrap the Intent in a
+     * PendingIntent and call PendingIntent.send() with
+     * ActivityOptions.setPendingIntentBackgroundActivityStartMode(
+     *     MODE_BACKGROUND_ACTIVITY_START_ALLOWED).
+     * The system grants BAL allowance for that single launch.
+     *
+     * On older releases the ActivityOptions API is missing; we fall back to
+     * a plain context.startActivity(intent) and rely on the foreground service
+     * status (or the user having interacted with the device recently) to
+     * carry the launch.  The doc comment on the file advertises the
+     * caveat.
+     *
+     * Throws on the actual startActivity call so the caller's try/catch can
+     * surface a useful ERROR_RESULT to the client.
+     */
+    private fun startActivityWithBalWorkaround(intent: Intent) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            try {
+                val pi = PendingIntent.getActivity(
+                    context,
+                    System.identityHashCode(intent),
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                val options = ActivityOptions.makeBasic()
+                    .setPendingIntentBackgroundActivityStartMode(
+                        ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                    )
+                pi.send(context, 0, null, null, null, null, options.toBundle())
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "BAL PendingIntent path failed, falling back: ${e.message}")
+                // fall through to plain startActivity below
+            }
+        }
+        context.startActivity(intent)
+    }
 
     /** Fully-qualify a component class name against its package. */
     private fun qualifyClassName(pkg: String, name: String): String = when {
