@@ -112,6 +112,9 @@ class AndroidAppDexDumpCommand(Command):
         if source != "cli":
             console._print_message("WARNING", "app_dex_dump is CLI-only.")
             return
+        if not console.device_id:
+            console._print_message("ERROR", "No Android device connected via adb.")
+            return
 
         spawn = False
         seconds = 20

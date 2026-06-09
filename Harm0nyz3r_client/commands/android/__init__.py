@@ -40,6 +40,8 @@ from . import (
     mastg_full,
     app_dex_dump,
     app_memory_dump,
+    frida_server,
+    app_explore,
 )
 
 __all__ = [
@@ -82,4 +84,6 @@ __all__ = [
     "mastg_full",
     "app_dex_dump",
     "app_memory_dump",
+    "frida_server",
+    "app_explore",
 ]

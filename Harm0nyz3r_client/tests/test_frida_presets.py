@@ -15,6 +15,8 @@ _EXPECTED_PRESETS = {
     "crypto_intercept",
     "method_trace",
     "native_enum",
+    "antidebug_bypass",
+    "native_trace",
 }
 
 
