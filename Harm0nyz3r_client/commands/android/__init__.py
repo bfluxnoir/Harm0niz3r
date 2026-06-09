@@ -27,6 +27,8 @@ from . import (
     app_pinning_check,
     app_webview_scan,
     app_crypto_scan,
+    app_sandbox_dump,
+    app_sqlite_inspect,
 )
 
 __all__ = [
@@ -56,4 +58,6 @@ __all__ = [
     "app_pinning_check",
     "app_webview_scan",
     "app_crypto_scan",
+    "app_sandbox_dump",
+    "app_sqlite_inspect",
 ]
