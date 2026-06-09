@@ -163,6 +163,7 @@ class Harm0nyz3rConsole:
             android_commands.app_scan.register(register_command)
             android_commands.app_deeplinks.register(register_command)
             android_commands.logcat_tail.register(register_command)
+            android_commands.app_provider_probe.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available

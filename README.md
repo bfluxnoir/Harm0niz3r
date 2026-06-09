@@ -169,6 +169,7 @@ When running with `--platform android` the following commands are available:
 | `app_deeplinks <package> [--json]` | Enumerate every `VIEW` intent-filter handler with scheme/host/path and copy-paste example URIs |
 | `app_permissions <package> [--dangerous]` | Show requested / granted permissions |
 | `app_provider <authority> [columns]` | Query a Content Provider by URI |
+| `app_provider_probe <package> [--json]` | Read-only security probes (base read, SQLi quote-break, SQLi UNION, path traversal) against every exported Provider in `<package>` |
 | `shell_exec <cmd>` | Execute a shell command on the device |
 | `agent_exec <cmd> [args]` | Route a command to the on-device agent instead of direct `adb` |
 | `<any cmd> --via-agent` | Generic flag: route the command through the on-device agent (same set as `agent_exec`) |
