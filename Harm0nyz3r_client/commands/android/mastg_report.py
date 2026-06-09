@@ -139,6 +139,15 @@ _MASVS_MAP: dict = {
     "NATIVE_RELRO_PARTIAL":        ("MASVS-CODE",     "MSTG-CODE-9"),
     "NATIVE_STACK_CANARY_MISSING": ("MASVS-CODE",     "MSTG-CODE-9"),
     "NATIVE_FORTIFY_MISSING":      ("MASVS-CODE",     "MSTG-CODE-9"),
+    # logcat_leak_scan (C4) ----------------------------------------------
+    "EMAIL_ADDRESS":               ("MASVS-PRIVACY",  "MSTG-PRIVACY-2"),
+    "IPV4_ADDRESS":                ("MASVS-PRIVACY",  "MSTG-PRIVACY-2"),
+    "PHONE_NUMBER":                ("MASVS-PRIVACY",  "MSTG-PRIVACY-2"),
+    "IBAN":                        ("MASVS-PRIVACY",  "MSTG-PRIVACY-2"),
+    "PAN_CARD":                    ("MASVS-PRIVACY",  "MSTG-PRIVACY-2"),
+    "JWT":                         ("MASVS-AUTH",     "MSTG-AUTH-1"),
+    "BEARER_TOKEN":                ("MASVS-AUTH",     "MSTG-AUTH-1"),
+    "AUTH_KEY_ASSIGN":             ("MASVS-AUTH",     "MSTG-AUTH-1"),
 }
 
 _DEFAULT_CATEGORY: Tuple[str, str] = ("MASVS-CODE", "n/a")

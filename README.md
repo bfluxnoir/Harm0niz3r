@@ -189,6 +189,7 @@ When running with `--platform android` the following commands are available:
 | `app_native_audit <path> [--json]` | ELF hardening audit (PIE / NX / RELRO / stack canary / FORTIFY) over `.so` files in an APK, directory or single binary |
 | `proxy_setup [--status] [--proxy IP:PORT \| --clear] [--ca cert.pem [--system] [--hash-name HEX]]` | Manage global HTTP proxy and (root) install a CA into `/system/etc/security/cacerts/`. Subject hash via openssl or `--hash-name`. |
 | `app_backup <package> [--out FILE] [--apk] [--obb] [--shared] [--extract DIR \| --tar-only]` | Run `adb backup`, then optionally convert `.ab` → `.tar` and unpack. Plain backups only in V1 (encrypted -> abe.jar hint). |
+| `logcat_leak_scan <package> [--seconds N] [--level V\|D\|I\|W\|E\|F\|S] [--out FILE] [--json]` | Capture logcat for N seconds while the operator drives the app, then regex-scan for PII (email/IP/phone/IBAN/PAN), auth tokens (JWT/Bearer/AUTH_KEY_ASSIGN), and well-known API keys |
 
 ## HarmonyOS Commands
 

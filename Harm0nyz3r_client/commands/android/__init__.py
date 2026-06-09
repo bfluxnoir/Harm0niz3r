@@ -32,6 +32,7 @@ from . import (
     app_native_audit,
     proxy_setup,
     app_backup,
+    logcat_leak_scan,
 )
 
 __all__ = [
@@ -66,4 +67,5 @@ __all__ = [
     "app_native_audit",
     "proxy_setup",
     "app_backup",
+    "logcat_leak_scan",
 ]
