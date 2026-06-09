@@ -52,7 +52,9 @@ private val DANGEROUS_PERMISSIONS = setOf(
  *
  * Supported commands
  * ------------------
- * apps_list                            → APPS_LIST_RESULT:<json array of package names>
+ * apps_list [-3]                       → APPS_LIST_RESULT:<json array of package names>
+ *                                         -3 = third-party only (excludes pure system apps;
+ *                                              updated system apps stay in the list).
  * app_surface <package>                → APP_SURFACE_RESULT:<json>
  * app_info <package>                   → APP_INFO_RESULT:<json>
  * apps_exported_activities             → EXPORTED_ACTIVITIES_RESULT:<json>  (alias: apps_visible_abilities)
@@ -89,7 +91,7 @@ class CommandHandler(private val context: Context) {
 
         try {
             when (cmd) {
-                "apps_list"              -> cmdAppsList(writer)
+                "apps_list"              -> cmdAppsList(args, writer)
                 "app_surface"            -> cmdAppSurface(args, writer)
                 "app_info"               -> cmdAppInfo(args, writer)
                 "apps_exported_activities",
@@ -114,11 +116,22 @@ class CommandHandler(private val context: Context) {
     // apps_list
     // ------------------------------------------------------------------
 
-    private fun cmdAppsList(writer: PrintWriter) {
-        val flags = PackageManager.GET_META_DATA.toLong()
-        val packages = pm.getInstalledPackages(flags.toInt())
+    private fun cmdAppsList(args: List<String>, writer: PrintWriter) {
+        val thirdPartyOnly = "-3" in args
+        val packages = pm.getInstalledPackages(PackageManager.GET_META_DATA)
         val arr = JSONArray()
-        packages.forEach { arr.put(it.packageName) }
+        for (pkg in packages) {
+            if (thirdPartyOnly) {
+                val appFlags = pkg.applicationInfo?.flags ?: 0
+                val isSystem = (appFlags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val isUpdatedSystem =
+                    (appFlags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                // Keep "updated system apps" (Chrome, Maps, ...) so the result
+                // matches what 'pm list packages -3' returns.
+                if (isSystem && !isUpdatedSystem) continue
+            }
+            arr.put(pkg.packageName)
+        }
         send(writer, "APPS_LIST_RESULT", arr.toString())
     }
 
