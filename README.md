@@ -168,7 +168,7 @@ When running with `--platform android` the following commands are available:
 | `app_deeplink <uri>` | Trigger a deep-link via `am start VIEW` |
 | `app_deeplinks <package> [--json]` | Enumerate every `VIEW` intent-filter handler with scheme/host/path and copy-paste example URIs |
 | `app_permissions <package> [--dangerous]` | Show requested / granted permissions |
-| `app_provider <authority> [columns]` | Query a Content Provider by URI |
+| `app_provider <package> [uri]` / `app_provider <package> <uri> --insert\|--update\|--delete --bind col:type:value [--where "<expr>"]` | Enumerate exported Content Providers, read-only query, or (C13) issue write operations. Bind types `s/i/l/f/d/b`. Verdict: OK / DENIED (`SecurityException`) / ERROR. |
 | `app_provider_probe <package> [--json]` | Read-only security probes (base read, SQLi quote-break, SQLi UNION, path traversal) against every exported Provider in `<package>` |
 | `shell_exec <cmd>` | Execute a shell command on the device |
 | `agent_exec <cmd> [args]` | Route a command to the on-device agent instead of direct `adb` |
