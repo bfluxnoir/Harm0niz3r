@@ -4,7 +4,7 @@ import re
 from typing import List
 
 from commands.base import Command, CommandSource
-from parsers.android_parser import parse_app_surface
+from parsers.android_parser import parse_app_surface, looks_thin, thin_warning
 
 
 def format_app_surface_for_console(parsed: dict) -> str:
@@ -83,6 +83,8 @@ class AndroidAppSurfaceCommand(Command):
             return
 
         parsed = parse_app_surface(stdout, package)
+        if looks_thin(parsed):
+            console._print_message("WARNING", thin_warning(package, "app_surface"))
 
         if send_to_app and console.connected:
             console.send_data_to_app(f"APP_SURFACE_RESULT:{json.dumps(parsed)}")

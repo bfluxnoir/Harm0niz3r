@@ -4,7 +4,7 @@ import re
 from typing import List
 
 from commands.base import Command, CommandSource
-from parsers.android_parser import parse_pm_dump
+from parsers.android_parser import parse_pm_dump, looks_thin, thin_warning
 
 
 class AndroidAppInfoCommand(Command):
@@ -44,6 +44,8 @@ class AndroidAppInfoCommand(Command):
             return
 
         parsed = parse_pm_dump(stdout, package)
+        if looks_thin(parsed):
+            console._print_message("WARNING", thin_warning(package, "app_info"))
 
         if send_to_app and console.connected:
             console.send_data_to_app(f"APP_INFO_RESULT:{json.dumps(parsed)}")

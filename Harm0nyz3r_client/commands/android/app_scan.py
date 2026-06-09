@@ -28,7 +28,7 @@ import re
 from typing import List, Optional
 
 from commands.base import Command, CommandSource
-from parsers.android_parser import parse_pm_dump
+from parsers.android_parser import parse_pm_dump, looks_thin, thin_warning
 from commands.android.app_permissions import _DANGEROUS_PERMS
 
 
@@ -411,6 +411,8 @@ class AndroidAppScanCommand(Command):
             return
 
         parsed = parse_pm_dump(stdout, package)
+        if looks_thin(parsed):
+            console._print_message("WARNING", thin_warning(package, "app_scan"))
         findings = _run_scan(parsed, stdout)
 
         if as_json:

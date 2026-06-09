@@ -3,7 +3,7 @@ import re
 from typing import List
 
 from commands.base import Command, CommandSource
-from parsers.android_parser import parse_pm_dump
+from parsers.android_parser import parse_pm_dump, looks_thin, thin_warning
 
 _DANGEROUS_PERMS = {
     "android.permission.READ_CONTACTS",
@@ -77,6 +77,8 @@ class AndroidAppPermissionsCommand(Command):
             return
 
         parsed = parse_pm_dump(stdout, package)
+        if looks_thin(parsed):
+            console._print_message("WARNING", thin_warning(package, "app_permissions"))
         requested = parsed.get("requestedAppPermissions", [])
         granted = parsed.get("grantedPermissions", [])
 

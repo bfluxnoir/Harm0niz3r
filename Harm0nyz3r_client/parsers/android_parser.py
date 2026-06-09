@@ -101,26 +101,35 @@ def parse_pm_dump(dump_output: str, package_name: str) -> dict:
         result["debugMode"] = "DEBUGGABLE" in flags_str
         result["systemApp"] = "SYSTEM" in flags_str
 
-    # --- Version info ---
-    m = re.search(r"versionCode=(\d+)", dump_output)
-    if m:
-        result["versionCode"] = int(m.group(1))
-    m = re.search(r"versionName=(\S+)", dump_output)
-    if m:
-        result["versionName"] = m.group(1)
-    m = re.search(r"targetSdk=(\d+)", dump_output)
-    if m:
-        result["targetSdk"] = int(m.group(1))
-    m = re.search(r"minSdk=(\d+)", dump_output)
-    if m:
-        result["minSdk"] = int(m.group(1))
+    # --- Version info (multiple key spellings across Android versions / OEMs) ---
+    for pat, key, cast in (
+        (r"versionCode=(\d+)",                         "versionCode", int),
+        (r"versionName=(\S+)",                         "versionName", str),
+        # Some OEM dumps emit 'targetSdkVersion='; AOSP emits 'targetSdk='.
+        (r"targetSdk(?:Version)?=(\d+)",               "targetSdk",   int),
+        (r"minSdk(?:Version)?=(\d+)",                  "minSdk",      int),
+    ):
+        m = re.search(pat, dump_output)
+        if m:
+            result[key] = cast(m.group(1))
 
     # --- Requested permissions ---
+    # Two layouts seen in the wild:
+    #   1) AOSP block form:
+    #        requested permissions:
+    #            android.permission.INTERNET
+    #            android.permission.WAKE_LOCK
+    #   2) Vendor array form (some Samsung/Xiaomi builds):
+    #        requested permissions: [android.permission.INTERNET, android.permission.WAKE_LOCK]
+    # Try both; merge unique permissions.
+    _perm_token = re.compile(r"(?:android|com|org|androidx)\.[\w.]+")
     req_block = re.search(
-        r"requested permissions:(.*?)(?:\n\s{4}\S|\Z)", dump_output, re.DOTALL
+        r"requested permissions\s*[:=]\s*\[?(.*?)(?:\]|\n\s{4}\S|\Z)",
+        dump_output,
+        re.DOTALL,
     )
     if req_block:
-        for perm in re.findall(r"android\.\S+|com\.\S+|org\.\S+", req_block.group(1)):
+        for perm in _perm_token.findall(req_block.group(1)):
             if perm not in result["requestedAppPermissions"]:
                 result["requestedAppPermissions"].append(perm)
 
@@ -296,6 +305,41 @@ def _parse_intent_filters(block: str) -> list:
             skills.append(skill)
 
     return skills
+
+
+# ---------------------------------------------------------------------------
+# Robustness helper
+# ---------------------------------------------------------------------------
+
+def thin_warning(package: str, command_name: str) -> str:
+    """Standard warning text suggesting an agent fallback when pm dump looks thin."""
+    return (
+        f"pm dump for {package} returned thin output -- your Android version "
+        "or OEM may use a layout the parser doesn't cover. Try "
+        f"'agent_exec {command_name} {package}' or "
+        f"'{command_name} {package} --via-agent' to query PackageManager directly."
+    )
+
+
+def looks_thin(parsed: dict) -> bool:
+    """
+    Heuristic: does this look like a half-parsed pm-dump result?
+
+    True when the dump told us essentially nothing about the package, which
+    in practice points at an OEM-specific layout the regex set above didn't
+    pick up.  Callers (app_info, app_scan, ...) can use this to nudge the
+    user toward 'agent_exec' / '--via-agent', which queries PackageManager
+    directly and bypasses text-parsing entirely.
+    """
+    if parsed.get("versionName") is None and parsed.get("targetSdk") is None:
+        return True
+    if (
+        not parsed.get("requestedAppPermissions")
+        and not parsed.get("grantedPermissions")
+        and not parsed.get("exposedComponents")
+    ):
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
