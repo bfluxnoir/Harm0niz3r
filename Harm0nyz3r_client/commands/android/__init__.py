@@ -34,6 +34,7 @@ from . import (
     app_backup,
     logcat_leak_scan,
     app_deeplink_fuzz,
+    app_root_detection_scan,
 )
 
 __all__ = [
@@ -70,4 +71,5 @@ __all__ = [
     "app_backup",
     "logcat_leak_scan",
     "app_deeplink_fuzz",
+    "app_root_detection_scan",
 ]
