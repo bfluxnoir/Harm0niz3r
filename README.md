@@ -176,6 +176,9 @@ When running with `--platform android` the following commands are available:
 | `app_scan <package> [--json]` | Risk-scored static security report (debuggable, allowBackup, cleartext, exported components, dangerous permissions, deeplinks) |
 | `logcat_tail <package> [--level V\|D\|I\|W\|E\|F\|S]` | Stream `adb logcat --pid=<pid>` filtered to a package, until Ctrl-C |
 | `frida_run <package> <script.js> [--spawn]` | Inject a Frida JS script via on-device `frida-server`; requires `pip install frida-tools` and a running frida-server on the device |
+| `app_pull <package> [--out DIR]` | Pull every installed APK file (base + splits) for `<package>` to the host |
+| `app_decompile <package> [--out DIR] [--jadx PATH]` | Pull APKs and decompile with `jadx`; output one sub-dir per APK |
+| `app_secrets <directory> [--json]` | Regex scan a decompiled tree for API keys, JWTs, private keys, hardcoded credentials and URLs |
 
 ## HarmonyOS Commands
 

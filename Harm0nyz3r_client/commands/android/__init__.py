@@ -19,6 +19,9 @@ from . import (
     logcat_tail,
     app_provider_probe,
     frida_run,
+    app_pull,
+    app_decompile,
+    app_secrets,
 )
 
 __all__ = [
@@ -40,4 +43,7 @@ __all__ = [
     "logcat_tail",
     "app_provider_probe",
     "frida_run",
+    "app_pull",
+    "app_decompile",
+    "app_secrets",
 ]

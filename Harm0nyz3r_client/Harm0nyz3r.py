@@ -165,6 +165,9 @@ class Harm0nyz3rConsole:
             android_commands.logcat_tail.register(register_command)
             android_commands.app_provider_probe.register(register_command)
             android_commands.frida_run.register(register_command)
+            android_commands.app_pull.register(register_command)
+            android_commands.app_decompile.register(register_command)
+            android_commands.app_secrets.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available
