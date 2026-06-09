@@ -11,6 +11,7 @@ _EXPECTED_PRESETS = {
     "biometric_bypass",
     "intent_spy",
     "http_capture",
+    "keystore_inventory",
 }
 
 
