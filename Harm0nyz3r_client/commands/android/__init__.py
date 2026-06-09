@@ -37,6 +37,7 @@ from . import (
     app_root_detection_scan,
     app_obfuscation_assessment,
     app_thirdparty_cve_scan,
+    mastg_full,
 )
 
 __all__ = [
@@ -76,4 +77,5 @@ __all__ = [
     "app_root_detection_scan",
     "app_obfuscation_assessment",
     "app_thirdparty_cve_scan",
+    "mastg_full",
 ]

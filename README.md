@@ -179,7 +179,8 @@ When running with `--platform android` the following commands are available:
 | `app_pull <package> [--out DIR]` | Pull every installed APK file (base + splits) for `<package>` to the host |
 | `app_decompile <package> [--out DIR] [--jadx PATH]` | Pull APKs and decompile with `jadx`; output one sub-dir per APK |
 | `app_secrets <directory> [--json]` | Regex scan a decompiled tree for API keys, JWTs, private keys, hardcoded credentials and URLs |
-| `mastg_report <package> [--out FILE] [--json] [--secrets-dir DIR]` | Composite MASTG-aligned static report (app_scan + app_provider_probe + app_deeplinks + optional secrets), grouped by MASVS category with MSTG test IDs |
+| `mastg_report <package> [--out FILE] [--json \| --html] [--secrets-dir DIR]` | Composite MASTG-aligned static report (app_scan + app_provider_probe + app_deeplinks + optional secrets), grouped by MASVS category with MSTG test IDs. `--html` emits a self-contained styled page with `<details>` collapsibles and severity badges. |
+| `mastg_full <package> [--out DIR] [--decompiled DIR] [--skip-pull] [--skip-decompile]` | End-to-end macro: app_pull → app_decompile → every static scanner → mastg_report MD + HTML → `index.html` linking all artefacts. |
 | `app_nsc_check <package>` / `--nsc-file <path>` | Audit Network Security Config: cleartext-permit, user-CA trust, debug-overrides, pin-sets. Apktool mode or pre-extracted file mode |
 | `app_pinning_check <directory>` | Scan a decompiled tree for OkHttp `CertificatePinner`, TrustKit, Appmattus CT, TrustAllCerts and `HostnameVerifier ALLOW_ALL` patterns |
 | `app_webview_scan <directory>` | Scan a decompiled tree for WebView misconfig (JS enabled, file access, JS interface, mixed-content, debugging, lax `shouldOverrideUrlLoading`) |

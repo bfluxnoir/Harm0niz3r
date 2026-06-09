@@ -1,0 +1,417 @@
+# -*- coding: utf-8 -*-
+# commands/android/mastg_full.py
+"""
+mastg_full - run the whole static MASTG playbook end-to-end against one
+package and dump every artefact into a single results directory.
+
+What it does
+------------
+  1. app_pull           pull base.apk + every split APK off the device
+  2. app_decompile      jadx-decode into <out>/decompiled/
+  3. Static scanners against the decompiled tree:
+       app_secrets
+       app_pinning_check
+       app_webview_scan
+       app_crypto_scan
+       app_root_detection_scan
+       app_obfuscation_assessment
+       app_thirdparty_cve_scan
+     Plus app_native_audit against the pulled base.apk.
+  4. mastg_report consolidated Markdown + HTML
+  5. index.html linking every artefact
+
+The output layout is
+  <out>/
+    apk/                        # pulled base.apk + splits
+    decompiled/                 # jadx output
+    scanners/
+      app_secrets.json
+      app_pinning_check.json
+      app_webview_scan.json
+      app_crypto_scan.json
+      app_root_detection_scan.json
+      app_obfuscation_assessment.json
+      app_thirdparty_cve_scan.json
+      app_native_audit.json
+    report.md
+    report.html
+    index.html
+
+V1 is a sequential orchestrator -- nothing parallel yet.  Each phase
+prints what it's doing so the operator sees progress in real time, and
+any phase that fails is logged but doesn't abort the rest of the run.
+"""
+
+import json
+import os
+import re
+import shutil
+import time
+from typing import Callable, List, Optional
+
+from commands.base import Command, CommandSource
+from parsers.android_parser import parse_pm_dump
+
+# Reuse the scanner helpers directly -- no need to go through their
+# command wrappers, which would print to stdout instead of letting us
+# capture results.
+from commands.android.app_secrets             import _walk_and_scan as scan_secrets
+from commands.android.app_pinning_check       import _walk_and_scan as scan_pinning
+from commands.android.app_webview_scan        import _walk_and_scan as scan_webview
+from commands.android.app_crypto_scan         import _walk_and_scan as scan_crypto
+from commands.android.app_root_detection_scan import _walk_and_scan as scan_root
+from commands.android.app_obfuscation_assessment import _walk_and_assess as scan_obfusc
+from commands.android.app_thirdparty_cve_scan import (
+    _detect_libraries, _build_findings, _load_db as load_cve_db,
+)
+from commands.android.app_native_audit        import _audit_path
+from commands.android.mastg_report import (
+    _from_app_scan, _from_provider_probe, _from_secrets,
+    _deeplink_summary, _markdown, _html_payload, _h,
+)
+from commands.android.app_provider_probe      import _collect_providers
+from commands.android.app_deeplinks           import _collect_handlers
+
+
+# ---------------------------------------------------------------------------
+# Pull + decompile shims (call the existing commands)
+# ---------------------------------------------------------------------------
+
+def _invoke(command_cls, console, args):
+    """Instantiate a Command class and run it. Returns nothing because the
+    underlying commands print to stdout."""
+    command_cls().execute(console, args, "cli")
+
+
+def _resolve_decompile_root(parent_dir: str, package: str) -> Optional[str]:
+    """app_decompile writes into a sub-directory whose exact name we don't
+    know up front; pick the most recently modified directory inside
+    parent_dir as the result root."""
+    if not os.path.isdir(parent_dir):
+        return None
+    candidates = [
+        os.path.join(parent_dir, name)
+        for name in os.listdir(parent_dir)
+        if os.path.isdir(os.path.join(parent_dir, name))
+    ]
+    if not candidates:
+        return None
+    candidates.sort(key=os.path.getmtime, reverse=True)
+    return candidates[0]
+
+
+# ---------------------------------------------------------------------------
+# Index page
+# ---------------------------------------------------------------------------
+
+_INDEX_CSS = """
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 900px; margin: 40px auto; padding: 24px; color: #1a1a1a; background: #fafafa; }
+h1 { color: #2c3e50; margin: 0 0 8px 0; }
+.meta { color: #666; margin-bottom: 24px; }
+ul { list-style: none; padding-left: 0; }
+li { background: white; padding: 12px 16px; border-radius: 8px; margin: 8px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+li a { font-weight: 600; color: #2980b9; text-decoration: none; }
+li a:hover { text-decoration: underline; }
+li .desc { color: #555; margin-top: 4px; font-size: 0.9em; }
+.miss { color: #c0392b; font-style: italic; }
+"""
+
+
+def _write_index(out_dir: str, package: str, links: List[dict]) -> None:
+    parts = [
+        "<!DOCTYPE html>",
+        '<html lang="en"><head>',
+        '<meta charset="utf-8">',
+        f"<title>{_h(package)} &mdash; Harm0niz3r results</title>",
+        f"<style>{_INDEX_CSS}</style>",
+        "</head><body>",
+        f"<h1>{_h(package)}</h1>",
+        f'<div class="meta">Generated by <code>mastg_full</code> at '
+        f"<code>{_h(time.strftime('%Y-%m-%d %H:%M:%S'))}</code>.</div>",
+        "<ul>",
+    ]
+    for link in links:
+        if link.get("path") and os.path.exists(os.path.join(out_dir, link["path"])):
+            parts.append(
+                f'<li><a href="{_h(link["path"])}">{_h(link["label"])}</a>'
+                f'<div class="desc">{_h(link.get("desc", ""))}</div></li>'
+            )
+        else:
+            parts.append(
+                f'<li><span class="miss">{_h(link["label"])} (not produced)</span>'
+                f'<div class="desc">{_h(link.get("desc", ""))}</div></li>'
+            )
+    parts.append("</ul></body></html>")
+    with open(os.path.join(out_dir, "index.html"), "w", encoding="utf-8") as f:
+        f.write("\n".join(parts))
+
+
+# ---------------------------------------------------------------------------
+# Scanner phase
+# ---------------------------------------------------------------------------
+
+def _dump_json(out_dir: str, name: str, payload) -> str:
+    path = os.path.join(out_dir, "scanners", f"{name}.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    return path
+
+
+def _to_dicts(items) -> list:
+    return [x.to_dict() for x in items]
+
+
+# ---------------------------------------------------------------------------
+# Command
+# ---------------------------------------------------------------------------
+
+class AndroidMastgFullCommand(Command):
+    @property
+    def name(self) -> str:
+        return "mastg_full"
+
+    def help(self) -> str:
+        return (
+            "mastg_full <package> [--out DIR] [--decompiled DIR]\n"
+            "          [--skip-pull] [--skip-decompile]\n"
+            "  Orchestrate the entire static MASTG playbook against <package>:\n"
+            "    app_pull -> app_decompile -> every static scanner ->\n"
+            "    mastg_report (Markdown + HTML) -> index.html\n"
+            "  Output goes to <out> (default ./results/<package>/).\n"
+            "  --decompiled DIR  Use a pre-existing decompiled source tree\n"
+            "                    instead of re-running app_decompile.\n"
+            "  --skip-pull       Don't pull the APK (use existing APKs).\n"
+            "  --skip-decompile  Don't run app_decompile (assume --decompiled).\n\n"
+            "Examples:\n"
+            "  mastg_full com.example.target\n"
+            "  mastg_full com.example.target --out ./engagement/target/\n"
+            "  mastg_full com.example.target --decompiled ./decompiled/target/ "
+            "--skip-pull --skip-decompile"
+        )
+
+    def execute(self, console, args: List[str], source: CommandSource) -> None:
+        if not console.device_id:
+            console._print_message("ERROR", "No Android device connected via adb.")
+            return
+
+        out_dir: Optional[str] = None
+        decompiled: Optional[str] = None
+        skip_pull = False
+        skip_decompile = False
+        positional: List[str] = []
+
+        i = 0
+        while i < len(args):
+            tok = args[i]
+            if tok == "--skip-pull":
+                skip_pull = True; i += 1
+            elif tok == "--skip-decompile":
+                skip_decompile = True; i += 1
+            elif tok == "--out" and i + 1 < len(args):
+                out_dir = args[i + 1]; i += 2
+            elif tok == "--decompiled" and i + 1 < len(args):
+                decompiled = args[i + 1]; i += 2
+            else:
+                positional.append(tok); i += 1
+
+        if len(positional) != 1:
+            console._print_message("INFO", "Usage: mastg_full <package> [--out DIR] ...")
+            return
+        package = positional[0]
+        if not re.match(r"^[a-zA-Z0-9._-]+$", package):
+            console._print_message("ERROR", f"Invalid package name: {package}")
+            return
+
+        if out_dir is None:
+            out_dir = os.path.join("results", package)
+        os.makedirs(out_dir, exist_ok=True)
+        apk_dir = os.path.join(out_dir, "apk")
+        os.makedirs(apk_dir, exist_ok=True)
+
+        # ---- Phase 1: pull APK ----
+        if skip_pull:
+            console._print_message("INFO", "[phase 1] app_pull skipped.")
+        else:
+            console._print_message("INFO", "[phase 1] app_pull ...")
+            try:
+                from commands.android.app_pull import AndroidAppPullCommand
+                _invoke(AndroidAppPullCommand, console, [package, "--out", apk_dir])
+            except Exception as e:
+                console._print_message("WARNING", f"app_pull failed: {e}")
+
+        # ---- Phase 2: decompile ----
+        if decompiled is not None and os.path.isdir(decompiled):
+            console._print_message(
+                "INFO", f"[phase 2] using pre-existing decompiled tree: {decompiled}"
+            )
+        elif skip_decompile:
+            console._print_message("INFO", "[phase 2] app_decompile skipped.")
+        else:
+            console._print_message("INFO", "[phase 2] app_decompile ...")
+            decompiled_parent = os.path.join(out_dir, "decompiled")
+            os.makedirs(decompiled_parent, exist_ok=True)
+            try:
+                from commands.android.app_decompile import AndroidAppDecompileCommand
+                _invoke(
+                    AndroidAppDecompileCommand, console,
+                    [package, "--out", decompiled_parent],
+                )
+                decompiled = _resolve_decompile_root(decompiled_parent, package)
+            except Exception as e:
+                console._print_message("WARNING", f"app_decompile failed: {e}")
+                decompiled = None
+
+        # ---- Phase 3: scanners against decompiled tree ----
+        if decompiled and os.path.isdir(decompiled):
+            console._print_message(
+                "INFO", f"[phase 3] scanners against {decompiled} ..."
+            )
+            try:
+                _dump_json(out_dir, "app_secrets",
+                           _to_dicts(scan_secrets(decompiled)))
+            except Exception as e:
+                console._print_message("WARNING", f"app_secrets failed: {e}")
+            try:
+                _dump_json(out_dir, "app_pinning_check",
+                           _to_dicts(scan_pinning(decompiled)))
+            except Exception as e:
+                console._print_message("WARNING", f"app_pinning_check failed: {e}")
+            try:
+                _dump_json(out_dir, "app_webview_scan",
+                           _to_dicts(scan_webview(decompiled)))
+            except Exception as e:
+                console._print_message("WARNING", f"app_webview_scan failed: {e}")
+            try:
+                _dump_json(out_dir, "app_crypto_scan",
+                           _to_dicts(scan_crypto(decompiled)))
+            except Exception as e:
+                console._print_message("WARNING", f"app_crypto_scan failed: {e}")
+            try:
+                _dump_json(out_dir, "app_root_detection_scan",
+                           _to_dicts(scan_root(decompiled)))
+            except Exception as e:
+                console._print_message(
+                    "WARNING", f"app_root_detection_scan failed: {e}"
+                )
+            try:
+                _dump_json(out_dir, "app_obfuscation_assessment",
+                           scan_obfusc(decompiled).to_dict())
+            except Exception as e:
+                console._print_message(
+                    "WARNING", f"app_obfuscation_assessment failed: {e}"
+                )
+            try:
+                db = load_cve_db()
+                found = _detect_libraries(decompiled, db)
+                _dump_json(
+                    out_dir, "app_thirdparty_cve_scan",
+                    _to_dicts(_build_findings(found)),
+                )
+            except Exception as e:
+                console._print_message(
+                    "WARNING", f"app_thirdparty_cve_scan failed: {e}"
+                )
+        else:
+            console._print_message(
+                "WARNING",
+                "[phase 3] decompiled tree not available; skipping source scanners."
+            )
+
+        # ---- Phase 3b: native audit against pulled APK ----
+        if not skip_pull:
+            console._print_message("INFO", "[phase 3b] app_native_audit ...")
+            apks = [
+                os.path.join(apk_dir, name)
+                for name in os.listdir(apk_dir)
+                if name.lower().endswith(".apk")
+            ] if os.path.isdir(apk_dir) else []
+            if apks:
+                try:
+                    reports = []
+                    for apk in apks:
+                        reports.extend(_audit_path(apk))
+                    _dump_json(
+                        out_dir, "app_native_audit",
+                        [r.to_dict() for r in reports],
+                    )
+                except Exception as e:
+                    console._print_message("WARNING", f"app_native_audit failed: {e}")
+            else:
+                console._print_message(
+                    "INFO", "[phase 3b] no APKs to audit; skipping native audit."
+                )
+
+        # ---- Phase 4: mastg_report (MD + HTML) ----
+        console._print_message("INFO", "[phase 4] mastg_report ...")
+        try:
+            stdout, _, ret = console._run_shell(["pm", "dump", package])
+            if ret == 0 and stdout:
+                parsed = parse_pm_dump(stdout, package)
+                report_findings = []
+                report_findings.extend(_from_app_scan(parsed, stdout))
+                providers = _collect_providers(parsed)
+                if providers:
+                    report_findings.extend(
+                        _from_provider_probe(console, providers)
+                    )
+                handlers = _collect_handlers(parsed)
+                report_findings.extend(_deeplink_summary(handlers))
+                if decompiled and os.path.isdir(decompiled):
+                    report_findings.extend(_from_secrets(decompiled))
+                with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as f:
+                    f.write(_markdown(package, parsed, report_findings))
+                with open(os.path.join(out_dir, "report.html"), "w", encoding="utf-8") as f:
+                    f.write(_html_payload(package, parsed, report_findings))
+            else:
+                console._print_message(
+                    "WARNING", "pm dump failed; report not generated."
+                )
+        except Exception as e:
+            console._print_message("WARNING", f"mastg_report failed: {e}")
+
+        # ---- Phase 5: index.html ----
+        _write_index(out_dir, package, [
+            {"label": "Consolidated MASTG report (HTML)",
+             "path": "report.html",
+             "desc": "MASVS-grouped, severity-badged, collapsible findings."},
+            {"label": "Consolidated MASTG report (Markdown)",
+             "path": "report.md",
+             "desc": "Same findings, GitHub-friendly markdown."},
+            {"label": "app_secrets",
+             "path": "scanners/app_secrets.json",
+             "desc": "API key, JWT, private-key blob and credential matches."},
+            {"label": "app_pinning_check",
+             "path": "scanners/app_pinning_check.json",
+             "desc": "OkHttp CertificatePinner, TrustAllCerts, ALLOW_ALL HostnameVerifier."},
+            {"label": "app_webview_scan",
+             "path": "scanners/app_webview_scan.json",
+             "desc": "WebView misconfigurations (JS interface, file access, mixed content)."},
+            {"label": "app_crypto_scan",
+             "path": "scanners/app_crypto_scan.json",
+             "desc": "Weak ciphers/hashes, zero IVs, hardcoded keys, insecure Random."},
+            {"label": "app_root_detection_scan",
+             "path": "scanners/app_root_detection_scan.json",
+             "desc": "Which root / Magisk / SafetyNet detection signals the app checks."},
+            {"label": "app_obfuscation_assessment",
+             "path": "scanners/app_obfuscation_assessment.json",
+             "desc": "NONE / LIGHT / MODERATE / HEAVY obfuscation level + metrics."},
+            {"label": "app_thirdparty_cve_scan",
+             "path": "scanners/app_thirdparty_cve_scan.json",
+             "desc": "3rd-party library inventory + historical CVEs from bundled DB."},
+            {"label": "app_native_audit",
+             "path": "scanners/app_native_audit.json",
+             "desc": "PIE / NX / RELRO / stack canary / FORTIFY across every .so."},
+        ])
+
+        console._print_message(
+            "SUCCESS",
+            f"mastg_full: wrote artefacts under {out_dir}/.  "
+            f"Open {os.path.join(out_dir, 'index.html')} in a browser."
+        )
+
+
+def register(registry_func):
+    registry_func(AndroidMastgFullCommand())

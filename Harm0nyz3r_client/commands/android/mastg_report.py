@@ -368,6 +368,192 @@ def _markdown(package: str, parsed: dict, findings: List[ReportFinding]) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# HTML payload (C22)
+# ---------------------------------------------------------------------------
+
+def _h(value) -> str:
+    """Minimal HTML escape -- the report never embeds untrusted markup, but
+    finding strings can include '<', '>' and '&' that must not break the
+    document."""
+    s = str(value) if value is not None else ""
+    return (
+        s.replace("&", "&amp;")
+         .replace("<", "&lt;")
+         .replace(">", "&gt;")
+         .replace('"', "&quot;")
+    )
+
+
+_HTML_CSS = """
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  max-width: 1100px; margin: 0 auto; padding: 24px;
+  color: #1a1a1a; background: #fafafa; line-height: 1.5; }
+header { border-bottom: 2px solid #2c3e50; padding-bottom: 12px; margin-bottom: 24px; }
+header h1 { margin: 0; font-size: 1.6em; color: #2c3e50; }
+.meta { color: #666; font-size: 0.9em; margin-top: 6px; }
+.meta code { background: #ececec; padding: 1px 6px; border-radius: 3px; }
+.cards { display: flex; gap: 12px; margin: 24px 0; flex-wrap: wrap; }
+.card { flex: 1 1 130px; padding: 14px 18px; border-radius: 8px; background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card.high   { border-left: 4px solid #e74c3c; }
+.card.medium { border-left: 4px solid #f39c12; }
+.card.low    { border-left: 4px solid #3498db; }
+.card.info   { border-left: 4px solid #95a5a6; }
+.card .count { font-size: 1.8em; font-weight: 700; line-height: 1.0; }
+.card .label { font-size: 0.85em; color: #666; margin-top: 4px; }
+.coverage, .summary { background: white; border-radius: 8px; padding: 14px 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #eee; }
+section.cat { margin-top: 32px; }
+section.cat h2 { color: #2c3e50; border-bottom: 1px solid #ccc; padding-bottom: 6px;
+  font-size: 1.2em; }
+details { background: white; border-radius: 8px; padding: 10px 16px; margin: 10px 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+details[open] { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+summary { cursor: pointer; font-weight: 600; outline: none; }
+.sev { display: inline-block; padding: 2px 10px; border-radius: 4px;
+  font-size: 0.75em; font-weight: 700; letter-spacing: 0.04em;
+  margin-right: 10px; vertical-align: middle; }
+.sev-HIGH   { background: #e74c3c; color: white; }
+.sev-MEDIUM { background: #f39c12; color: white; }
+.sev-LOW    { background: #3498db; color: white; }
+.sev-INFO   { background: #95a5a6; color: white; }
+dl { margin: 12px 0 4px 0; }
+dt { font-weight: 600; margin-top: 8px; color: #555; font-size: 0.9em; }
+dd { margin: 2px 0 6px 16px; }
+pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto;
+  font-size: 0.85em; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word; }
+.empty { background: white; padding: 20px; border-radius: 8px; color: #666;
+  text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+footer { margin-top: 48px; padding-top: 12px; border-top: 1px solid #ddd;
+  color: #666; font-size: 0.85em; }
+"""
+
+
+def _html_payload(package: str, parsed: dict, findings: List[ReportFinding]) -> str:
+    sev_counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+    for f in findings:
+        sev_counts[f.severity] = sev_counts.get(f.severity, 0) + 1
+
+    by_cat: dict = {}
+    for f in findings:
+        by_cat.setdefault(f.category, []).append(f)
+
+    out: List[str] = []
+    out.append("<!DOCTYPE html>")
+    out.append('<html lang="en"><head>')
+    out.append('<meta charset="utf-8">')
+    out.append('<meta name="viewport" content="width=device-width, initial-scale=1">')
+    out.append(f"<title>Harm0niz3r MASTG report &mdash; {_h(package)}</title>")
+    out.append(f"<style>{_HTML_CSS}</style>")
+    out.append("</head><body>")
+
+    out.append("<header>")
+    out.append(f"<h1>MASTG-aligned Static Report</h1>")
+    out.append('<div class="meta">')
+    out.append(f"Package: <code>{_h(package)}</code> &mdash; ")
+    out.append(
+        f"version <code>{_h(parsed.get('versionName'))}</code> "
+        f"(code <code>{_h(parsed.get('versionCode'))}</code>) &mdash; "
+    )
+    out.append(
+        f"targetSdk <code>{_h(parsed.get('targetSdk'))}</code> / "
+        f"minSdk <code>{_h(parsed.get('minSdk'))}</code> &mdash; "
+    )
+    out.append(
+        f"Debug=<code>{_h(parsed.get('debugMode'))}</code> "
+        f"System=<code>{_h(parsed.get('systemApp'))}</code> &mdash; "
+    )
+    out.append(f"Scanned <code>{_h(time.strftime('%Y-%m-%d %H:%M:%S'))}</code>")
+    out.append("</div>")
+    out.append("</header>")
+
+    # Severity cards
+    out.append('<div class="cards">')
+    for sev in ("HIGH", "MEDIUM", "LOW", "INFO"):
+        out.append(
+            f'<div class="card {sev.lower()}">'
+            f'<div class="count">{sev_counts.get(sev, 0)}</div>'
+            f'<div class="label">{sev}</div>'
+            f"</div>"
+        )
+    out.append(
+        f'<div class="card"><div class="count">{len(findings)}</div>'
+        f'<div class="label">TOTAL</div></div>'
+    )
+    out.append("</div>")
+
+    # MASVS coverage table
+    out.append('<div class="coverage">')
+    out.append("<h3 style=\"margin-top:0\">MASVS coverage</h3>")
+    out.append("<table>")
+    out.append("<thead><tr><th>MASVS category</th><th>Findings</th></tr></thead><tbody>")
+    for cat in _CATEGORY_ORDER:
+        out.append(
+            f"<tr><td>{_h(cat)}</td><td>{len(by_cat.get(cat, []))}</td></tr>"
+        )
+    for extra in by_cat:
+        if extra not in _CATEGORY_ORDER:
+            out.append(
+                f"<tr><td>{_h(extra)}</td><td>{len(by_cat[extra])}</td></tr>"
+            )
+    out.append("</tbody></table>")
+    out.append("</div>")
+
+    # Per-category sections
+    if not findings:
+        out.append(
+            '<div class="empty">No findings.  Either the app is clean against '
+            "the V1 static rules, or the rules didn't catch its particular shape "
+            "(coverage is still being expanded -- see the C bucket roadmap).</div>"
+        )
+    else:
+        for cat in _CATEGORY_ORDER:
+            bucket = sorted(
+                by_cat.get(cat, []), key=lambda x: _SEV_ORDER.get(x.severity, 9)
+            )
+            if not bucket:
+                continue
+            out.append('<section class="cat">')
+            out.append(f"<h2>{_h(cat)}</h2>")
+            for f in bucket:
+                out.append("<details>")
+                out.append(
+                    f'<summary><span class="sev sev-{_h(f.severity)}">'
+                    f"{_h(f.severity)}</span>{_h(f.title)} "
+                    f"<small style=\"color:#888;font-weight:400;\">"
+                    f"&nbsp;[{_h(f.id)}]</small></summary>"
+                )
+                out.append("<dl>")
+                out.append(f"<dt>MASTG test ID</dt><dd><code>{_h(f.mastg)}</code></dd>")
+                out.append(
+                    f"<dt>Source command</dt><dd><code>{_h(f.source)}</code></dd>"
+                )
+                if f.evidence:
+                    ev = f.evidence
+                    if len(ev) > 1200:
+                        ev = ev[:1197] + "..."
+                    out.append(f"<dt>Evidence</dt><dd><pre>{_h(ev)}</pre></dd>")
+                out.append(f"<dt>Detail</dt><dd>{_h(f.detail)}</dd>")
+                if f.recommendation:
+                    out.append(
+                        f"<dt>Recommendation</dt><dd>{_h(f.recommendation)}</dd>"
+                    )
+                out.append("</dl>")
+                out.append("</details>")
+            out.append("</section>")
+
+    out.append("<footer>Generated by <code>mastg_report</code> "
+               "(Harm0niz3r).</footer>")
+    out.append("</body></html>")
+    return "\n".join(out)
+
+
 def _json_payload(package: str, parsed: dict, findings: List[ReportFinding]) -> str:
     by_cat: dict = {}
     for f in findings:
@@ -404,19 +590,23 @@ class AndroidMastgReportCommand(Command):
 
     def help(self) -> str:
         return (
-            "mastg_report <package> [--out FILE] [--json] [--secrets-dir DIR]\n"
+            "mastg_report <package> [--out FILE] [--json | --html] [--secrets-dir DIR]\n"
             "  Run app_scan + app_provider_probe + app_deeplinks against\n"
             "  <package>, organise findings by MASVS category and tag each\n"
             "  with the corresponding MASTG MSTG-* test ID.  Emits Markdown\n"
             "  to stdout by default.\n"
             "  --out FILE        Write the report to FILE instead of stdout.\n"
             "  --json            Emit a JSON payload instead of Markdown.\n"
+            "  --html            Emit a self-contained HTML page (inline CSS,\n"
+            "                    no JS, <details> collapsibles, severity\n"
+            "                    badges).\n"
             "  --secrets-dir DIR Also include findings from a previously\n"
             "                    decompiled tree (typically the output of\n"
             "                    'app_decompile').\n\n"
             "Examples:\n"
             "  mastg_report com.example.target\n"
             "  mastg_report com.example.target --out report.md\n"
+            "  mastg_report com.example.target --html --out report.html\n"
             "  mastg_report com.example.target --secrets-dir ./decompiled/com.example.target/"
         )
 
@@ -427,6 +617,7 @@ class AndroidMastgReportCommand(Command):
 
         out_file: Optional[str] = None
         as_json = False
+        as_html = False
         secrets_dir: Optional[str] = None
         positional: List[str] = []
 
@@ -436,12 +627,22 @@ class AndroidMastgReportCommand(Command):
             if tok == "--json":
                 as_json = True
                 i += 1
+            elif tok == "--html":
+                as_html = True
+                i += 1
             elif tok == "--out" and i + 1 < len(args):
                 out_file = args[i + 1]; i += 2
             elif tok == "--secrets-dir" and i + 1 < len(args):
                 secrets_dir = args[i + 1]; i += 2
             else:
                 positional.append(tok); i += 1
+
+        if as_json and as_html:
+            console._print_message(
+                "ERROR",
+                "--json and --html are mutually exclusive."
+            )
+            return
 
         if len(positional) != 1:
             console._print_message("INFO", "Usage: mastg_report <package> [--out FILE] [--json] [--secrets-dir DIR]")
@@ -492,6 +693,8 @@ class AndroidMastgReportCommand(Command):
         # Emit
         if as_json:
             body = _json_payload(package, parsed, findings)
+        elif as_html:
+            body = _html_payload(package, parsed, findings)
         else:
             body = _markdown(package, parsed, findings)
         if out_file:
