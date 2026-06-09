@@ -1,7 +1,10 @@
-# commands/android/app_ability_fuzz.py
+# commands/android/app_activity_fuzz.py
 """
-app_ability_fuzz - drive an Activity with mutated Intent extras via
+app_activity_fuzz - drive an Activity with mutated Intent extras via
 repeated 'am start' invocations.
+
+The previous name 'app_ability_fuzz' (HarmonyOS-flavoured) is kept as an
+alias for users coming from the HarmonyOS side of the tool.
 
 V2 (C14) widens the mutator surface and adds outcome classification:
 
@@ -278,10 +281,15 @@ _AM_EXTRA_FLAG = {
 # Command
 # ---------------------------------------------------------------------------
 
-class AndroidAppAbilityFuzzCommand(Command):
+class AndroidAppActivityFuzzCommand(Command):
     @property
     def name(self) -> str:
-        return "app_ability_fuzz"
+        return "app_activity_fuzz"
+
+    @property
+    def aliases(self) -> List[str]:
+        # Back-compat: old muscle-memory + tab-completion still works.
+        return ["app_ability_fuzz"]
 
     @property
     def supports_logging(self) -> bool:
@@ -289,8 +297,9 @@ class AndroidAppAbilityFuzzCommand(Command):
 
     def help(self) -> str:
         return (
-            "app_ability_fuzz <package> <activity> [--count N] [--delay ms]\n"
-            "                  [--json] [--log] [key=value ...]\n"
+            "app_activity_fuzz <package> <activity> [--count N] [--delay ms]\n"
+            "                   [--json] [--log] [key=value ...]   "
+            "(alias: app_ability_fuzz)\n"
             "\n"
             "Fuzz an Activity's Intent extras via repeated 'am start' invocations.\n"
             "\n"
@@ -315,9 +324,9 @@ class AndroidAppAbilityFuzzCommand(Command):
             "  OK       clean run\n"
             "\n"
             "Examples:\n"
-            "  app_ability_fuzz com.example.app .LoginActivity --count 100 username=?s password=?s\n"
-            "  app_ability_fuzz com.example.app .DeepLinkActivity --count 200 url=?u page=?l\n"
-            "  app_ability_fuzz com.example.app .SearchActivity --count 50 query=?s offset=?i --json"
+            "  app_activity_fuzz com.example.app .LoginActivity --count 100 username=?s password=?s\n"
+            "  app_activity_fuzz com.example.app .DeepLinkActivity --count 200 url=?u page=?l\n"
+            "  app_activity_fuzz com.example.app .SearchActivity --count 50 query=?s offset=?i --json"
         )
 
     # ------------------------------------------------------------------
@@ -385,11 +394,11 @@ class AndroidAppAbilityFuzzCommand(Command):
             ts = time.strftime("%Y%m%d_%H%M%S")
             safe = re.sub(r"[^a-zA-Z0-9_.-]", "_", f"{package}_{activity}")
             log_file = open(
-                os.path.join(log_dir, f"app_ability_fuzz_{safe}_{ts}.log"),
+                os.path.join(log_dir, f"app_activity_fuzz_{safe}_{ts}.log"),
                 "w", encoding="utf-8",
             )
             log_file.write(
-                f"# app_ability_fuzz android | package={package} "
+                f"# app_activity_fuzz android | package={package} "
                 f"activity={activity}\n"
                 f"# count={count} delay={delay_ms}ms\n\n"
             )
@@ -492,4 +501,4 @@ class AndroidAppAbilityFuzzCommand(Command):
 
 
 def register(registry_func):
-    registry_func(AndroidAppAbilityFuzzCommand())
+    registry_func(AndroidAppActivityFuzzCommand())

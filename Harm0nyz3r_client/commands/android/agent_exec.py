@@ -48,7 +48,7 @@ def route_via_agent(console, command_line: str, timeout: float = _DEFAULT_TIMEOU
         console._print_message(
             "WARNING",
             f"No reply from agent within {timeout:.0f}s. Long-running commands "
-            "(e.g. app_ability_fuzz) may still be running; the reply will appear "
+            "(e.g. app_activity_fuzz) may still be running; the reply will appear "
             "in the console as soon as it arrives."
         )
         return
@@ -65,10 +65,13 @@ AGENT_SUPPORTED_COMMANDS = frozenset({
     "app_info",
     "app_surface",
     "apps_exported_activities",
-    "apps_visible_abilities",  # CLI alias of apps_exported_activities
-    "app_ability",
-    "app_ability_want",
-    "app_ability_fuzz",
+    "apps_visible_abilities",   # CLI alias of apps_exported_activities
+    "app_activity_start",
+    "app_activity_intent",
+    "app_activity_fuzz",
+    "app_ability",              # D-bucket alias of app_activity_start
+    "app_ability_want",         # D-bucket alias of app_activity_intent
+    "app_ability_fuzz",         # D-bucket alias of app_activity_fuzz
     "app_broadcast",
     "app_deeplink",
     "app_permissions",
@@ -88,9 +91,10 @@ class AndroidAgentExecCommand(Command):
     in-process than they do through 'adb'.
 
     Agent-supported commands: apps_list, app_info, app_surface,
-    apps_exported_activities (alias: apps_visible_abilities), app_ability,
-    app_ability_want, app_ability_fuzz, app_broadcast, app_deeplink,
-    app_permissions, app_provider, shell_exec.
+    apps_exported_activities (alias: apps_visible_abilities),
+    app_activity_start (alias: app_ability), app_activity_intent
+    (alias: app_ability_want), app_activity_fuzz (alias: app_ability_fuzz),
+    app_broadcast, app_deeplink, app_permissions, app_provider, shell_exec.
 
     The reply is rendered by the console's receive loop (see Harm0nyz3rConsole
     ._render_agent_reply); this command just waits until the reply has arrived

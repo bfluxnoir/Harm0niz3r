@@ -151,9 +151,9 @@ class Harm0nyz3rConsole:
             android_commands.app_info.register(register_command)
             android_commands.app_surface.register(register_command)
             android_commands.apps_exported_activities.register(register_command)
-            android_commands.app_ability.register(register_command)
-            android_commands.app_ability_want.register(register_command)
-            android_commands.app_ability_fuzz.register(register_command)
+            android_commands.app_activity_start.register(register_command)
+            android_commands.app_activity_intent.register(register_command)
+            android_commands.app_activity_fuzz.register(register_command)
             android_commands.app_broadcast.register(register_command)
             android_commands.app_deeplink.register(register_command)
             android_commands.app_permissions.register(register_command)
@@ -1438,8 +1438,8 @@ class Harm0nyz3rConsole:
                 ("app_info",         "com.example.target"),
                 ("app_surface",      "com.example.target"),
                 ("apps_exported_activities", ""),
-                ("app_ability",      "com.example.target .MainActivity"),
-                ("app_ability_want", "com.example.target .LoginActivity username=admin"),
+                ("app_activity_start",  "com.example.target .MainActivity"),
+                ("app_activity_intent", "com.example.target .LoginActivity username=admin"),
                 ("app_deeplink",     "myapp://admin/panel"),
                 ("app_broadcast",    "com.example.REFRESH -n com.example.target/.Receiver"),
                 ("app_permissions",  "com.example.target --dangerous"),

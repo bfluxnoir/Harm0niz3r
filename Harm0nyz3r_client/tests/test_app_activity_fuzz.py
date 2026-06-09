@@ -1,8 +1,10 @@
-"""Tests for the C14 upgrades to commands/android/app_ability_fuzz.py."""
+"""Tests for commands/android/app_activity_fuzz.py (renamed in the D
+bucket from app_ability_fuzz; the C14 mutator-class + classifier logic
+is unchanged)."""
 
 import random
 
-from commands.android.app_ability_fuzz import (
+from commands.android.app_activity_fuzz import (
     _classify,
     _resolve_mode,
     _fuzz_int, _fuzz_long, _fuzz_float, _fuzz_uri, _fuzz_path, _fuzz_string,

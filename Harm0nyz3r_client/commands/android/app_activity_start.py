@@ -1,14 +1,26 @@
-# commands/android/app_ability.py
+# commands/android/app_activity_start.py
 import re
 from typing import List
 
 from commands.base import Command, CommandSource
 
 
-class AndroidAppAbilityCommand(Command):
+class AndroidAppActivityStartCommand(Command):
+    """
+    Start an Activity by component name via 'am start -n <pkg>/<activity>'.
+
+    The previous name 'app_ability' (HarmonyOS-flavoured) is kept as an
+    alias for users coming from the HarmonyOS side of the tool.
+    """
+
     @property
     def name(self) -> str:
-        return "app_ability"
+        return "app_activity_start"
+
+    @property
+    def aliases(self) -> List[str]:
+        # Back-compat: old muscle-memory + tab-completion still works.
+        return ["app_ability"]
 
     @property
     def supports_logging(self) -> bool:
@@ -16,9 +28,10 @@ class AndroidAppAbilityCommand(Command):
 
     def help(self) -> str:
         return (
-            "app_ability <package> <activity> [--log]\n"
+            "app_activity_start <package> <activity> [--log]   "
+            "(alias: app_ability)\n"
             "  Start an Activity via 'am start -n <package>/<activity>'.\n"
-            "  Example: app_ability com.example.app .MainActivity"
+            "  Example: app_activity_start com.example.app .MainActivity"
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
@@ -27,7 +40,10 @@ class AndroidAppAbilityCommand(Command):
             return
 
         if len(args) != 2:
-            console._print_message("INFO", "Usage: app_ability <package> <activity> [--log]")
+            console._print_message(
+                "INFO",
+                "Usage: app_activity_start <package> <activity> [--log]"
+            )
             return
 
         package, activity = args[0], args[1]
@@ -57,4 +73,4 @@ class AndroidAppAbilityCommand(Command):
 
 
 def register(registry_func):
-    registry_func(AndroidAppAbilityCommand())
+    registry_func(AndroidAppActivityStartCommand())

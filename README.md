@@ -161,9 +161,9 @@ When running with `--platform android` the following commands are available:
 | `app_info <package>` | Version, SDK, flags and permissions for a package |
 | `app_surface <package>` | All exported components with permissions and intent filters |
 | `apps_exported_activities` | All exported Activities with no permission guard (alias: `apps_visible_abilities`) |
-| `app_ability <pkg> <activity>` | Launch an Activity via `am start` |
-| `app_ability_want <pkg> <activity> [extras]` | Launch with structured Intent extras |
-| `app_ability_fuzz <pkg> <activity> [--count N] [--delay ms] [--json] [key=value ...]` | Fuzz-launch an Activity with extended mutators (`?s` edge-pool strings, `?i/?l` boundary ints, `?f` float incl. NaN/Inf, `?u` URI scheme zoo, `?p` traversal, `?b`, `?` auto). Per-iteration ANOMALY / ERROR / OK classification with end-of-run summary. |
+| `app_activity_start <pkg> <activity>` (alias: `app_ability`) | Launch an Activity via `am start` |
+| `app_activity_intent <pkg> <activity> [extras]` (alias: `app_ability_want`) | Launch with a rich Intent (action / data / mime / category / typed extras) |
+| `app_activity_fuzz <pkg> <activity> [--count N] [--delay ms] [--json] [key=value ...]` (alias: `app_ability_fuzz`) | Fuzz-launch an Activity with extended mutators (`?s` edge-pool strings, `?i/?l` boundary ints, `?f` float incl. NaN/Inf, `?u` URI scheme zoo, `?p` traversal, `?b`, `?` auto). Per-iteration ANOMALY / ERROR / OK classification with end-of-run summary. |
 | `app_broadcast <action> [-n component] [extras]` | Send a broadcast via `am broadcast` |
 | `app_deeplink <uri>` | Trigger a deep-link via `am start VIEW` |
 | `app_deeplinks <package> [--json]` | Enumerate every `VIEW` intent-filter handler with scheme/host/path and copy-paste example URIs |
@@ -356,7 +356,7 @@ Harm0nyz3r_android/
 - Runs as a `START_STICKY` foreground service to survive background restrictions.
 - Binds only to `127.0.0.1:51337` (loopback) — traffic never leaves the device.
 - MARCO-POLO handshake extended: Android agent replies `POLO:android:2.0` so the client can detect the platform version.
-- `CommandHandler` dispatches the full Android command set: `apps_list`, `app_info`, `app_surface`, `apps_exported_activities` (alias: `apps_visible_abilities`), `app_ability`, `app_ability_want`, `app_ability_fuzz`, `app_broadcast`, `app_deeplink`, `app_permissions`, `app_provider`, `shell_exec`.
+- `CommandHandler` dispatches the full Android command set: `apps_list`, `app_info`, `app_surface`, `apps_exported_activities` (alias: `apps_visible_abilities`), `app_activity_start` (alias: `app_ability`), `app_activity_intent` (alias: `app_ability_want`), `app_activity_fuzz` (alias: `app_ability_fuzz`), `app_broadcast`, `app_deeplink`, `app_permissions`, `app_provider`, `shell_exec`.
 - The Python client reaches the agent with `agent_exec <cmd> [args]`, which sends a `COMMAND_REQUEST:` over the socket; the agent runs the command in-process and replies. Most other Android CLI commands talk to the device directly via `adb`.
 - Requires `QUERY_ALL_PACKAGES` permission (declared in `AndroidManifest.xml`).
 - UI palette: dark background `#1A1A2E` with Material Green `#4CAF50` accents, replacing the red HarmonyOS palette.
@@ -400,9 +400,9 @@ Harm0niz3r/
         │   ├── app_info.py
         │   ├── app_surface.py
         │   ├── apps_exported_activities.py
-        │   ├── app_ability.py
-        │   ├── app_ability_want.py
-        │   ├── app_ability_fuzz.py
+        │   ├── app_activity_start.py
+        │   ├── app_activity_intent.py
+        │   ├── app_activity_fuzz.py
         │   ├── app_broadcast.py
         │   ├── app_deeplink.py
         │   ├── app_permissions.py

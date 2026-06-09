@@ -1,4 +1,4 @@
-# commands/android/app_ability_want.py
+# commands/android/app_activity_intent.py
 import re
 from typing import List
 
@@ -13,10 +13,24 @@ def _infer_type(value: str) -> str:
     return "string"
 
 
-class AndroidAppAbilityWantCommand(Command):
+class AndroidAppActivityIntentCommand(Command):
+    """
+    Start an Activity with a rich Intent: action, data, mime, category and
+    typed extras, all dispatched through 'am start' for one-shot launches
+    that you can drive from the command line.
+
+    The previous name 'app_ability_want' (HarmonyOS 'Want' parlance) is
+    kept as an alias for users coming from the HarmonyOS side of the tool.
+    """
+
     @property
     def name(self) -> str:
-        return "app_ability_want"
+        return "app_activity_intent"
+
+    @property
+    def aliases(self) -> List[str]:
+        # Back-compat: old muscle-memory + tab-completion still works.
+        return ["app_ability_want"]
 
     @property
     def supports_logging(self) -> bool:
@@ -24,18 +38,20 @@ class AndroidAppAbilityWantCommand(Command):
 
     def help(self) -> str:
         return (
-            "app_ability_want <package> <activity> [key=value ...] [--log]\n"
-            "  Start an Activity with Intent extras via 'am start'.\n\n"
+            "app_activity_intent <package> <activity> [key=value ...] [--log]   "
+            "(alias: app_ability_want)\n"
+            "  Start an Activity with a rich Intent via 'am start'.\n\n"
             "Special keys:\n"
-            "  action=<value>   → -a <action>\n"
-            "  data=<uri>       → -d <uri>\n"
-            "  mime=<type>      → -t <type>\n"
-            "  category=<cat>   → -c <category>\n"
-            "  component=<pkg/class>  → -n <component>\n"
-            "  Any other key    → extra (type auto-inferred: string/int/bool)\n\n"
+            "  action=<value>           -> -a <action>\n"
+            "  data=<uri>               -> -d <uri>\n"
+            "  mime=<type>              -> -t <type>\n"
+            "  category=<cat>           -> -c <category>\n"
+            "  component=<pkg/class>    -> -n <component>  (overrides positional)\n"
+            "  any other key            -> typed extra (auto-inferred: string/int/bool)\n\n"
             "Examples:\n"
-            "  app_ability_want com.example.app .DeepLinkActivity action=android.intent.action.VIEW data=myapp://home\n"
-            "  app_ability_want com.example.app .LoginActivity username=admin isAdmin=true"
+            "  app_activity_intent com.example.app .DeepLinkActivity \\\n"
+            "      action=android.intent.action.VIEW data=myapp://home\n"
+            "  app_activity_intent com.example.app .LoginActivity username=admin isAdmin=true"
         )
 
     def execute(self, console, args: List[str], source: CommandSource) -> None:
@@ -102,4 +118,4 @@ class AndroidAppAbilityWantCommand(Command):
 
 
 def register(registry_func):
-    registry_func(AndroidAppAbilityWantCommand())
+    registry_func(AndroidAppActivityIntentCommand())

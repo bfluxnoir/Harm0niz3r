@@ -9,8 +9,7 @@ from parsers.android_parser import parse_package_list, parse_pm_dump
 def _extract_exported_activities(console, send_to_app: bool = False) -> None:
     """
     Enumerate all packages, parse pm dump for each, and collect exported
-    Activities that have no required permission (analogous to HarmonyOS
-    apps_visible_abilities).
+    Activities that have no required permission.
     """
     if not console.device_id:
         console._print_message("ERROR", "No Android device connected via adb.")
@@ -72,8 +71,9 @@ def _extract_exported_activities(console, send_to_app: bool = False) -> None:
 class AndroidAppsExportedActivitiesCommand(Command):
     """
     Android-specific: list exported Activities with no required permission.
-    The previous name 'apps_visible_abilities' is kept as an alias for users
-    coming from the HarmonyOS side of the tool.
+
+    The previous name 'apps_visible_abilities' (HarmonyOS-flavoured) is kept
+    as an alias for users coming from the HarmonyOS side of the tool.
     """
 
     @property
@@ -82,7 +82,7 @@ class AndroidAppsExportedActivitiesCommand(Command):
 
     @property
     def aliases(self) -> List[str]:
-        # Keep the HarmonyOS-flavoured name working for muscle memory.
+        # Back-compat: old muscle-memory + tab-completion still works.
         return ["apps_visible_abilities"]
 
     def help(self) -> str:
