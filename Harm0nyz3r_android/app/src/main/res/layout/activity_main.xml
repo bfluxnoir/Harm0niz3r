@@ -29,7 +29,7 @@
         android:text="@string/subtitle"
         android:textColor="#A5D6A7"
         android:textSize="13sp"
-        android:layout_marginBottom="40dp" />
+        android:layout_marginBottom="32dp" />
 
     <TextView
         android:id="@+id/statusText"
@@ -38,7 +38,28 @@
         android:text="@string/status_stopped"
         android:textColor="#A5D6A7"
         android:textSize="15sp"
-        android:layout_marginBottom="32dp" />
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/port_label"
+        android:textColor="#A5D6A7"
+        android:textSize="13sp"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/portEdit"
+        android:layout_width="140dp"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:maxLength="5"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#80FFFFFF"
+        android:textSize="18sp"
+        android:gravity="center"
+        android:autofillHints="off"
+        android:layout_marginBottom="20dp" />
 
     <Button
         android:id="@+id/toggleButton"
@@ -50,11 +71,13 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/portHintText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/port_hint"
         android:textColor="#558B5E"
         android:textSize="12sp"
-        android:layout_marginTop="40dp" />
+        android:layout_marginTop="40dp"
+        android:gravity="center" />
 
 </LinearLayout>

@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
@@ -18,13 +19,34 @@ class Harm0niz3rService : Service() {
 
     companion object {
         const val TAG = "Harm0niz3rService"
-        const val PORT = 51337
+        const val DEFAULT_PORT = 51337
+        private const val PREFS_NAME = "harm0niz3r_prefs"
+        private const val KEY_PORT = "agent_port"
         private const val CHANNEL_ID = "harm0niz3r_channel"
         private const val NOTIFICATION_ID = 1337
 
         @Volatile
         var isRunning = false
             private set
+
+        /** Port the service is currently bound to (DEFAULT_PORT until first start). */
+        @Volatile
+        var activePort: Int = DEFAULT_PORT
+            private set
+
+        /** Read the persisted port (or DEFAULT_PORT on first launch). */
+        fun readPort(context: Context): Int {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getInt(KEY_PORT, DEFAULT_PORT)
+        }
+
+        /** Persist a new port choice; takes effect at the next service start. */
+        fun writePort(context: Context, port: Int) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putInt(KEY_PORT, port)
+                .apply()
+        }
     }
 
     private var tcpServer: TcpServer? = null
@@ -39,12 +61,14 @@ class Harm0niz3rService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Service starting on port $PORT")
-        startForeground(NOTIFICATION_ID, buildNotification("Listening on port $PORT…"))
+        val port = readPort(applicationContext)
+        activePort = port
+        Log.i(TAG, "Service starting on port $port")
+        startForeground(NOTIFICATION_ID, buildNotification("Listening on port $port…"))
         isRunning = true
 
         tcpServer = TcpServer(
-            port = PORT,
+            port = port,
             context = applicationContext,
             onStatusChange = { msg ->
                 Log.i(TAG, msg)

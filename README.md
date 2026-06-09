@@ -39,8 +39,10 @@ hdc app install harm0niz3r.hap
 adb install harm0niz3r.apk
 ```
 
-Then launch the **Harm0niz3r** app on the device and tap **Start Agent**. The agent runs as a
-foreground service and listens on `127.0.0.1:51337`.
+Then launch the **Harm0niz3r** app on the device. The port field defaults to `51337`; change it
+if 51337 collides with something else on your device, then tap **Start Agent**. The agent runs
+as a foreground service and listens on `127.0.0.1:<port>` (the selection is persisted in
+SharedPreferences and survives reboot).
 
 > The Android agent requires **Android 8.0+ (API 26+)** and grants itself
 > `QUERY_ALL_PACKAGES` at install time for full package enumeration.
