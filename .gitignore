@@ -35,3 +35,11 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local scratch / agent-session state -- never check these in
+.scratch/
+.claude/
+backups/
+sandbox/
+logs/
+results/
