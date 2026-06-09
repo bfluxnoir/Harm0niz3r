@@ -29,6 +29,7 @@ from . import (
     app_crypto_scan,
     app_sandbox_dump,
     app_sqlite_inspect,
+    app_native_audit,
 )
 
 __all__ = [
@@ -60,4 +61,5 @@ __all__ = [
     "app_crypto_scan",
     "app_sandbox_dump",
     "app_sqlite_inspect",
+    "app_native_audit",
 ]

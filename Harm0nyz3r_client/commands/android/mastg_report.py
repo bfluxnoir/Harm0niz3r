@@ -131,6 +131,14 @@ _MASVS_MAP: dict = {
     "CRYPTO_HARDCODED_KEY":        ("MASVS-CRYPTO",   "MSTG-CRYPTO-1"),
     "CRYPTO_WEAK_KEYGEN":          ("MASVS-CRYPTO",   "MSTG-CRYPTO-3"),
     "CRYPTO_LEGACY_BC_PROVIDER":   ("MASVS-CRYPTO",   "MSTG-CRYPTO-5"),
+    # app_native_audit (C15) ---------------------------------------------
+    "NATIVE_PIE_MISSING":          ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_NX_MISSING":           ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_NX_UNKNOWN":           ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_RELRO_MISSING":        ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_RELRO_PARTIAL":        ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_STACK_CANARY_MISSING": ("MASVS-CODE",     "MSTG-CODE-9"),
+    "NATIVE_FORTIFY_MISSING":      ("MASVS-CODE",     "MSTG-CODE-9"),
 }
 
 _DEFAULT_CATEGORY: Tuple[str, str] = ("MASVS-CODE", "n/a")
