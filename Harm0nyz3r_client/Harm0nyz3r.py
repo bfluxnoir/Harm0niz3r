@@ -179,6 +179,7 @@ class Harm0nyz3rConsole:
             android_commands.proxy_setup.register(register_command)
             android_commands.app_backup.register(register_command)
             android_commands.logcat_leak_scan.register(register_command)
+            android_commands.app_deeplink_fuzz.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available

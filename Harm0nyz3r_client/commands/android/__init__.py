@@ -33,6 +33,7 @@ from . import (
     proxy_setup,
     app_backup,
     logcat_leak_scan,
+    app_deeplink_fuzz,
 )
 
 __all__ = [
@@ -68,4 +69,5 @@ __all__ = [
     "proxy_setup",
     "app_backup",
     "logcat_leak_scan",
+    "app_deeplink_fuzz",
 ]
