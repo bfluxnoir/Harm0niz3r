@@ -169,6 +169,8 @@ class Harm0nyz3rConsole:
             android_commands.app_decompile.register(register_command)
             android_commands.app_secrets.register(register_command)
             android_commands.mastg_report.register(register_command)
+            android_commands.app_nsc_check.register(register_command)
+            android_commands.app_pinning_check.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available

@@ -23,6 +23,8 @@ from . import (
     app_decompile,
     app_secrets,
     mastg_report,
+    app_nsc_check,
+    app_pinning_check,
 )
 
 __all__ = [
@@ -48,4 +50,6 @@ __all__ = [
     "app_decompile",
     "app_secrets",
     "mastg_report",
+    "app_nsc_check",
+    "app_pinning_check",
 ]

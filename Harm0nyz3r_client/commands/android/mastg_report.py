@@ -88,6 +88,24 @@ _MASVS_MAP: dict = {
     "INTERNAL_URL_HTTP":         ("MASVS-NETWORK",    "MSTG-NETWORK-1"),
     "EMAIL":                     ("MASVS-PRIVACY",    "MSTG-PRIVACY-1"),
     "GENERIC_SECRET_ASSIGN":     ("MASVS-STORAGE",    "MSTG-STORAGE-1"),
+    # app_nsc_check (C5) -------------------------------------------------
+    "NSC_MISSING":               ("MASVS-NETWORK",    "MSTG-NETWORK-2"),
+    "NSC_CLEARTEXT_BASE":        ("MASVS-NETWORK",    "MSTG-NETWORK-2"),
+    "NSC_CLEARTEXT_DOMAIN":      ("MASVS-NETWORK",    "MSTG-NETWORK-2"),
+    "NSC_USER_TRUST_ANCHORS":    ("MASVS-NETWORK",    "MSTG-NETWORK-3"),
+    "NSC_DEBUG_OVERRIDES":       ("MASVS-NETWORK",    "MSTG-NETWORK-2"),
+    "NSC_PIN_SET_PRESENT":       ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "NSC_NO_PIN_SET":            ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "MANIFEST_CLEARTEXT_TRUE":   ("MASVS-NETWORK",    "MSTG-NETWORK-2"),
+    # app_pinning_check (C6) ---------------------------------------------
+    "PINNING_OKHTTP_LIB":        ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "PINNING_OKHTTP_SETTER":     ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "PINNING_OKHTTP_PIN":        ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "PINNING_TRUSTKIT":          ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "PINNING_APPMATTUS_CT":      ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "CONSCRYPT_TRUST_PROVIDER":  ("MASVS-NETWORK",    "MSTG-NETWORK-4"),
+    "TRUST_ALL_CERTS":           ("MASVS-NETWORK",    "MSTG-NETWORK-3"),
+    "HOSTNAME_VERIFIER_ALLOW_ALL": ("MASVS-NETWORK",  "MSTG-NETWORK-3"),
 }
 
 _DEFAULT_CATEGORY: Tuple[str, str] = ("MASVS-CODE", "n/a")
