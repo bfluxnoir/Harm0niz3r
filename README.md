@@ -187,6 +187,7 @@ When running with `--platform android` the following commands are available:
 | `app_sandbox_dump <package> [--out DIR] [--skip-files]` | Root-required pull of `/data/data/<pkg>/{shared_prefs,databases,files}/` via `su 0 cp` + `/data/local/tmp` staging |
 | `app_sqlite_inspect <path> [--sample N] [--json]` | Walk a directory for `*.db`/`*.sqlite` files; list tables, columns, row counts; optional sample rows |
 | `app_native_audit <path> [--json]` | ELF hardening audit (PIE / NX / RELRO / stack canary / FORTIFY) over `.so` files in an APK, directory or single binary |
+| `proxy_setup [--status] [--proxy IP:PORT \| --clear] [--ca cert.pem [--system] [--hash-name HEX]]` | Manage global HTTP proxy and (root) install a CA into `/system/etc/security/cacerts/`. Subject hash via openssl or `--hash-name`. |
 
 ## HarmonyOS Commands
 

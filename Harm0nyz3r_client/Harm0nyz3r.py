@@ -176,6 +176,7 @@ class Harm0nyz3rConsole:
             android_commands.app_sandbox_dump.register(register_command)
             android_commands.app_sqlite_inspect.register(register_command)
             android_commands.app_native_audit.register(register_command)
+            android_commands.proxy_setup.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available
