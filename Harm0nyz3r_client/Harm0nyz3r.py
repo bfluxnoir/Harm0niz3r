@@ -188,6 +188,7 @@ class Harm0nyz3rConsole:
             android_commands.app_memory_dump.register(register_command)
             android_commands.frida_server.register(register_command)
             android_commands.app_explore.register(register_command)
+            android_commands.tools_status.register(register_command)
 
         elif self.platform.name == "ios":
             # Phase 3 — stub; only platform-agnostic commands available

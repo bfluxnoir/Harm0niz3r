@@ -42,6 +42,7 @@ from . import (
     app_memory_dump,
     frida_server,
     app_explore,
+    tools_status,
 )
 
 __all__ = [
@@ -86,4 +87,5 @@ __all__ = [
     "app_memory_dump",
     "frida_server",
     "app_explore",
+    "tools_status",
 ]

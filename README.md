@@ -185,6 +185,7 @@ When running with `--platform android` the following commands are available:
 | `app_memory_dump <package> [--out DIR] [--strings\|--raw] [--min-strlen N] [--min-range B] [--max-range B] [--filter REGEX] [--spawn] [--seconds N]` | Frida-driven memory dump from `rw-` ranges. Default `--strings` mode extracts printable ASCII into `strings.txt`; `--raw` writes per-range `.bin`. Catches decrypted tokens, derived keys, OAuth headers that never hit disk. |
 | `frida_server [--status\|--start\|--stop\|--install HOST_BIN] [--remote-path PATH]` | Manage the on-device frida-server binary via adb (push `.bin`/`.xz`, `chmod 755`, start under root via `nohup`, kill, status). No Frida Python module required for any subcommand. |
 | `app_explore <package> [--class PATTERN] [--methods] [--out FILE] [--spawn] [--seconds N]` | Frida-driven runtime class introspection. Globs `Java.enumerateLoadedClasses` results; `--methods` adds every declared `java.lang.reflect.Method` per match. Catches classes loaded via `DexClassLoader`/`InMemoryDexClassLoader` that the static decompile path misses. |
+| `tools_status [--json]` | Diagnostic: print the configured / resolved path for every external CLI tool the toolchain shells out to (`jadx`, `apktool`, `openssl`, `adb`). Resolution: `tools.local.json` (gitignored, personal) > `tools.json` (shipped defaults) > PATH. |
 | `app_nsc_check <package>` / `--nsc-file <path>` | Audit Network Security Config: cleartext-permit, user-CA trust, debug-overrides, pin-sets. Apktool mode or pre-extracted file mode |
 | `app_pinning_check <directory>` | Scan a decompiled tree for OkHttp `CertificatePinner`, TrustKit, Appmattus CT, TrustAllCerts and `HostnameVerifier ALLOW_ALL` patterns |
 | `app_webview_scan <directory>` | Scan a decompiled tree for WebView misconfig (JS enabled, file access, JS interface, mixed-content, debugging, lax `shouldOverrideUrlLoading`) |
@@ -199,6 +200,29 @@ When running with `--platform android` the following commands are available:
 | `app_root_detection_scan <directory> [--json]` | Regex scan a decompiled tree for root-detection signals (RootBeer, RootTools, SafetyNet / Play Integrity, Magisk file refs, canonical `su` paths, `Build.TAGS test-keys`, `ro.debuggable` / `ro.secure`, `Runtime.exec("su")`, Magisk / SuperSU / Xposed package checks). Enumeration mode — every hit is INFO. |
 | `app_obfuscation_assessment <directory> [--json]` | Heuristic obfuscation level (NONE / LIGHT / MODERATE / HEAVY) from short-identifier %, long hex/base64 string blob count, stripped smali debug info, Kotlin `@Metadata` density. |
 | `app_thirdparty_cve_scan <directory> [--json]` | Detect well-known third-party libraries (OkHttp, Apache Commons Collections, Bouncy Castle, Jackson Databind, jsoup, SQLCipher, Volley, Realm, Glide, Picasso, Retrofit, Gson, EventBus) by class fingerprint; annotate each with known historical CVEs from a bundled JSON DB. Inventory + known-CVE annotation; manual version check is on the operator. |
+
+### Configuring external tool paths
+
+The static-analysis layer shells out to a few external CLI tools (`jadx`, `apktool`, `openssl`). Their paths are resolved centrally by [`Harm0nyz3r_client/tools.py`](Harm0nyz3r_client/tools.py); commands consult that resolver instead of doing their own `shutil.which()` lookups.
+
+Resolution order (first hit wins):
+
+1. **`Harm0nyz3r_client/tools.local.json`** — personal per-machine overrides; gitignored.
+2. **`Harm0nyz3r_client/tools.json`** — shipped registry of known tool names; values stay `null` so they don't shadow your overrides.
+3. **`PATH`** — `shutil.which(name)` fallback.
+4. `None` — surfaces as a clear error in the command that needed the tool.
+
+Pin a path by creating `tools.local.json` next to the shipped `tools.json`:
+
+```json
+{
+  "jadx":    "C:\\Tools\\jadx\\bin\\jadx.bat",
+  "apktool": "C:\\Tools\\apktool\\apktool.bat",
+  "openssl": "C:\\Program Files\\Git\\mingw64\\bin\\openssl.exe"
+}
+```
+
+Run [`tools_status`](Harm0nyz3r_client/commands/android/tools_status.py) to see what the resolver sees on your machine.
 
 ## HarmonyOS Commands
 

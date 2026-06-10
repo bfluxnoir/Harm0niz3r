@@ -178,11 +178,15 @@ class AndroidProxySetupCommand(Command):
         Android's CA store uses).  Shells out to 'openssl' because doing
         it by hand requires ASN.1 parsing.
         """
-        if shutil.which("openssl") is None:
+        # Resolve openssl through the F bucket central resolver so a user
+        # can pin the path in tools.local.json instead of relying on PATH.
+        from tools import resolve_tool
+        openssl_bin = resolve_tool("openssl")
+        if not openssl_bin:
             return None
         try:
             proc = subprocess.run(
-                ["openssl", "x509", "-inform", "PEM", "-subject_hash_old",
+                [openssl_bin, "x509", "-inform", "PEM", "-subject_hash_old",
                  "-in", ca_path, "-noout"],
                 capture_output=True, text=True, check=False,
             )

@@ -1,0 +1,9 @@
+{
+  "$schema":         "Harm0niz3r tool path configuration",
+  "$doc":            "Each entry maps an external CLI tool name to its absolute path on the host. Set a value to null (or omit the key) to fall back to a PATH lookup via shutil.which(). To override any of these for your personal setup without polluting the repo, copy this file to 'tools.local.json' (gitignored) and edit the values there -- it takes precedence over this file. The command-line overrides (--jadx PATH, --apktool PATH, etc.) still win over both files for one-shot use.",
+
+  "jadx":            null,
+  "apktool":         null,
+  "openssl":         null,
+  "adb":             null
+}

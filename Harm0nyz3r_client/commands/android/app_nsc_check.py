@@ -397,7 +397,7 @@ class AndroidAppNscCheckCommand(Command):
     def execute(self, console, args: List[str], source: CommandSource) -> None:
         # --- arg parsing ---
         as_json = False
-        apktool_bin = "apktool"
+        apktool_override: Optional[str] = None
         out_dir: Optional[str] = None
         nsc_file: Optional[str] = None
         manifest_file: Optional[str] = None
@@ -409,7 +409,7 @@ class AndroidAppNscCheckCommand(Command):
             if tok == "--json":
                 as_json = True; i += 1
             elif tok == "--apktool" and i + 1 < len(args):
-                apktool_bin = args[i + 1]; i += 2
+                apktool_override = args[i + 1]; i += 2
             elif tok == "--out" and i + 1 < len(args):
                 out_dir = args[i + 1]; i += 2
             elif tok == "--nsc-file" and i + 1 < len(args):
@@ -469,12 +469,26 @@ class AndroidAppNscCheckCommand(Command):
             console._print_message("ERROR", f"Invalid package name: {package}")
             return
 
-        if shutil.which(apktool_bin) is None and not os.path.isfile(apktool_bin):
+        # Resolution: --apktool flag wins; otherwise consult tools.json /
+        # tools.local.json (the F bucket central resolver); finally fall
+        # back to PATH lookup.
+        if apktool_override:
+            apktool_bin = (
+                apktool_override
+                if os.path.isfile(apktool_override)
+                else shutil.which(apktool_override)
+            )
+        else:
+            from tools import resolve_tool
+            apktool_bin = resolve_tool("apktool")
+        if not apktool_bin:
             console._print_message(
                 "ERROR",
-                f"apktool not found ('{apktool_bin}').  Install from "
-                "https://apktool.org/ and add it to PATH, pass --apktool <path>, "
-                "or use file mode: --nsc-file <path> [--manifest-file <path>]."
+                "apktool not found.  Either:\n"
+                "  - install from https://apktool.org/ and add to PATH\n"
+                "  - set 'apktool' in Harm0nyz3r_client/tools.local.json to the absolute path\n"
+                "  - pass --apktool <path> for a one-shot override\n"
+                "  - or use file mode: --nsc-file <path> [--manifest-file <path>]"
             )
             return
 

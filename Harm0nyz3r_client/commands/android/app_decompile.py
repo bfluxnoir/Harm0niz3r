@@ -44,7 +44,7 @@ class AndroidAppDecompileCommand(Command):
             return
 
         out_dir = None
-        jadx_bin = "jadx"
+        jadx_override = None
         for opt in ("--out", "--jadx"):
             if opt in args:
                 idx = args.index(opt)
@@ -53,7 +53,7 @@ class AndroidAppDecompileCommand(Command):
                     if opt == "--out":
                         out_dir = val
                     else:
-                        jadx_bin = val
+                        jadx_override = val
                     args = args[:idx] + args[idx + 2:]
                 else:
                     args = args[:idx]
@@ -69,12 +69,23 @@ class AndroidAppDecompileCommand(Command):
             console._print_message("ERROR", f"Invalid package name: {package}")
             return
 
-        if shutil.which(jadx_bin) is None and not os.path.isfile(jadx_bin):
+        # Resolution: --jadx flag wins; otherwise consult tools.json /
+        # tools.local.json (the F bucket central resolver); finally fall
+        # back to PATH lookup.
+        if jadx_override:
+            jadx_bin = jadx_override if os.path.isfile(jadx_override) else (
+                shutil.which(jadx_override)
+            )
+        else:
+            from tools import resolve_tool
+            jadx_bin = resolve_tool("jadx")
+        if not jadx_bin:
             console._print_message(
                 "ERROR",
-                f"jadx not found ('{jadx_bin}').  Install from "
-                "https://github.com/skylot/jadx/releases and add it to PATH, "
-                "or pass --jadx <path> explicitly."
+                "jadx not found.  Either:\n"
+                "  - install from https://github.com/skylot/jadx/releases and add to PATH\n"
+                "  - set 'jadx' in Harm0nyz3r_client/tools.local.json to the absolute path\n"
+                "  - pass --jadx <path> for a one-shot override"
             )
             return
 

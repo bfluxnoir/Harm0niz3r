@@ -43,3 +43,8 @@ backups/
 sandbox/
 logs/
 results/
+
+# Per-machine external-tool path overrides (Harm0nyz3r tools.py).
+# Edit tools.local.json with your jadx / apktool / openssl paths;
+# the shipped tools.json stays clean.
+Harm0nyz3r_client/tools.local.json
